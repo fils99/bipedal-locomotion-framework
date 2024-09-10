@@ -248,6 +248,9 @@ class Application:
         self.vectors_collection_server.populate_metadata(
             "desired_torque", self.robot_control.get_joint_list()
         )
+        self.vectors_collection_server.populate_metadata(
+            "com_desired", ["x", "y", "z"]
+        )
         self.vectors_collection_server.finalize_metadata()
 
     def build_remote_control_board_driver(
@@ -513,6 +516,12 @@ class Application:
         self.vectors_collection_server.populate_data(
             "com_from_measured", com_from_measured
         )
+
+        self.vectors_collection_server.populate_data(
+            "com_desired", com_spline_output.position
+        )
+
+
         self.vectors_collection_server.populate_data(
             "desired_torque", self.tsid.solver.get_output().joint_torques
         )
