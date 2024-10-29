@@ -5,15 +5,15 @@ BSD-3-Clause license. -->
 <?xml version="1.0" encoding="UTF-8" ?>
 <device  xmlns:xi="http://www.w3.org/2001/XInclude" name="yarp-robot-logger" type="YarpRobotLoggerDevice">
   <param name="robot">ergocub</param>
-  <param name="sampling_period_in_s">0.01</param>
+  <param name="sampling_period_in_s">0.001</param>
 
-  <param name="rgb_cameras_fps">(20)</param>
+  <!-- <param name="rgb_cameras_fps">(20)</param>
   <param name="rgb_cameras_rgb_save_mode">("video")</param>
 
   <param name="rgbd_cameras_fps">()</param>
   <param name="rgbd_cameras_depth_scale">()</param>
   <param name="rgbd_cameras_depth_save_mode">()</param>
-  <param name="rgbd_cameras_rgb_save_mode">()</param>
+  <param name="rgbd_cameras_rgb_save_mode">()</param> -->
 
   <param name="video_codec_code">mp4v</param>
   <param name="port_prefix">/yarp-robot-logger</param>
@@ -76,13 +76,13 @@ BSD-3-Clause license. -->
     </group>
   </group>
 
-  <group name="RobotCameraBridge">
+  <!-- <group name="RobotCameraBridge">
       <param name="stream_cameras">true</param>
       <group name="Cameras">
         <param name="rgb_cameras_list">("jabra")</param>
         <param name="rgbd_cameras_list">()</param>
       </group>
-  </group>
+  </group> -->
 
   <group name="RobotSensorBridge">
     <param name="check_for_nan">false</param>
@@ -100,22 +100,30 @@ BSD-3-Clause license. -->
     </group>
 
     <group name="SixAxisForceTorqueSensors">
-      <param name="sixaxis_forcetorque_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft, r_arm_ft, l_arm_ft)</param>
+      <!-- <param name="sixaxis_forcetorque_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft, r_arm_ft, l_arm_ft)</param> -->
+      <param name="sixaxis_forcetorque_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft)</param>
     </group>
 
     <group name="TemperatureSensors">
-      <param name="temperature_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft, r_arm_ft, l_arm_ft)</param>
+      <!-- <param name="temperature_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft, r_arm_ft, l_arm_ft)</param> -->
+      <param name="temperature_sensors_list">(l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft)</param>
     </group>
 
     <group name="CartesianWrenches">
-      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client", "left_leg_wrench_client", "right_leg_wrench_client")</param>
+      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client")</param>
+      <!-- <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client", "left_leg_wrench_client", "right_leg_wrench_client")</param> -->
     </group>
 
     <group name="InertialSensors">
-      <param name="accelerometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
+      <!-- <param name="accelerometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
       <param name="gyroscopes_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
       <param name="magnetometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
-      <param name="orientation_sensors_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
+      <param name="orientation_sensors_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param> -->
+
+      <param name="accelerometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="gyroscopes_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="magnetometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="orientation_sensors_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
     </group>
 
   </group>
@@ -128,13 +136,13 @@ BSD-3-Clause license. -->
       <elem name="left_rear_wrench_client">left_rear_wrench_client</elem>
       <elem name="right_front_wrench_client">right_front_wrench_client</elem>
       <elem name="right_rear_wrench_client">right_rear_wrench_client</elem>
-      <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
-      <elem name="left_leg_wrench_client">left_leg_wrench_client</elem>
+      <!-- <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
+      <elem name="left_leg_wrench_client">left_leg_wrench_client</elem> -->
       <elem name="right_arm_wrench_client">right_arm_wrench_client</elem>
       <elem name="left_arm_wrench_client">left_arm_wrench_client</elem>
       <elem name="mas-remapper">mas-remapper</elem>
       <!-- <elem name="realsense">realsense</elem> -->
-      <elem name="jabra">jabra</elem>
+      <!-- <elem name="jabra">jabra</elem> -->
     </paramlist>
   </action>
 
