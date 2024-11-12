@@ -110,8 +110,8 @@ BSD-3-Clause license. -->
     </group>
 
     <group name="CartesianWrenches">
-      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client")</param>
-      <!-- <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client", "left_leg_wrench_client", "right_leg_wrench_client")</param> -->
+      <!-- <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client")</param> -->
+      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client", "left_leg_wrench_client", "right_leg_wrench_client")</param>
     </group>
 
     <group name="InertialSensors">
@@ -136,8 +136,8 @@ BSD-3-Clause license. -->
       <elem name="left_rear_wrench_client">left_rear_wrench_client</elem>
       <elem name="right_front_wrench_client">right_front_wrench_client</elem>
       <elem name="right_rear_wrench_client">right_rear_wrench_client</elem>
-      <!-- <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
-      <elem name="left_leg_wrench_client">left_leg_wrench_client</elem> -->
+      <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
+      <elem name="left_leg_wrench_client">left_leg_wrench_client</elem>
       <elem name="right_arm_wrench_client">right_arm_wrench_client</elem>
       <elem name="left_arm_wrench_client">left_arm_wrench_client</elem>
       <elem name="mas-remapper">mas-remapper</elem>
