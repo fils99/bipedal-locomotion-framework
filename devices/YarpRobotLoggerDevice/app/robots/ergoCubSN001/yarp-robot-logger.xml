@@ -133,14 +133,14 @@ BSD-3-Clause license. -->
   <action phase="startup" level="15" type="attach">
     <paramlist name="networks">
       <elem name="all_joints">all_joints_mc</elem>
-      <!-- <elem name="left_front_wrench_client">left_front_wrench_client</elem>
+      <elem name="left_front_wrench_client">left_front_wrench_client</elem>
       <elem name="left_rear_wrench_client">left_rear_wrench_client</elem>
       <elem name="right_front_wrench_client">right_front_wrench_client</elem>
       <elem name="right_rear_wrench_client">right_rear_wrench_client</elem>
       <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
       <elem name="left_leg_wrench_client">left_leg_wrench_client</elem>
-      <elem name="right_arm_wrench_client">right_arm_wrench_client</elem>
-      <elem name="left_arm_wrench_client">left_arm_wrench_client</elem> -->
+      <!-- <elem name="right_arm_wrench_client">right_arm_wrench_client</elem> -->
+      <elem name="left_arm_wrench_client">left_arm_wrench_client</elem>
       <elem name="mas-remapper">mas-remapper</elem>
       <!-- <elem name="realsense">realsense</elem> -->
       <elem name="jabra">jabra</elem>
