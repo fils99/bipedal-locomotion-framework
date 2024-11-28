@@ -111,8 +111,8 @@ BSD-3-Clause license. -->
     </group>
 
     <group name="CartesianWrenches">
-      <!-- <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client")</param> -->
-      <param name="cartesian_wrenches_list">()</param>
+      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client", "left_arm_wrench_client", "right_arm_wrench_client")</param>
+      <!-- <param name="cartesian_wrenches_list">()</param> -->
     </group>
 
     <group name="InertialSensors">
