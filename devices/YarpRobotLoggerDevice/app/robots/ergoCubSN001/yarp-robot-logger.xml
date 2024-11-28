@@ -76,13 +76,13 @@ BSD-3-Clause license. -->
     </group>
   </group>
 
-  <group name="RobotCameraBridge">
+  <!-- <group name="RobotCameraBridge">
       <param name="stream_cameras">true</param>
       <group name="Cameras">
         <param name="rgb_cameras_list">("jabra")</param>
         <param name="rgbd_cameras_list">()</param>
       </group>
-  </group>
+  </group> -->
 
   <group name="RobotSensorBridge">
     <param name="check_for_nan">false</param>
@@ -143,7 +143,7 @@ BSD-3-Clause license. -->
       <elem name="left_arm_wrench_client">left_arm_wrench_client</elem>
       <elem name="mas-remapper">mas-remapper</elem>
       <!-- <elem name="realsense">realsense</elem> -->
-      <elem name="jabra">jabra</elem>
+      <!-- <elem name="jabra">jabra</elem> -->
     </paramlist>
   </action>
 
