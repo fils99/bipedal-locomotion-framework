@@ -89,7 +89,7 @@ BSD-3-Clause license. -->
     <param name="stream_joint_states">true</param>
     <param name="stream_motor_states">true</param>
     <param name="stream_inertials">true</param>
-    <param name="stream_cartesian_wrenches">false</param>
+    <param name="stream_cartesian_wrenches">true</param>
     <param name="stream_forcetorque_sensors">true</param>
     <param name="stream_pids">false</param>
     <param name="stream_motor_PWM">true</param>
