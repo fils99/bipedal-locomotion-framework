@@ -5,7 +5,7 @@ BSD-3-Clause license. -->
 <?xml version="1.0" encoding="UTF-8" ?>
 <device  xmlns:xi="http://www.w3.org/2001/XInclude" name="yarp-robot-logger" type="YarpRobotLoggerDevice">
   <param name="robot">ergocub</param>
-  <param name="sampling_period_in_s">0.01</param>
+  <param name="sampling_period_in_s">0.001</param>
 
   <param name="rgb_cameras_fps">()</param>
   <param name="rgb_cameras_rgb_save_mode">()</param>
@@ -88,9 +88,13 @@ BSD-3-Clause license. -->
       <elem name="left_rear_wrench_client">left_rear_wrench_client</elem>
       <elem name="right_front_wrench_client">right_front_wrench_client</elem>
       <elem name="right_rear_wrench_client">right_rear_wrench_client</elem>
+      <elem name="right_leg_wrench_client">right_leg_wrench_client</elem>
+      <elem name="left_leg_wrench_client">left_leg_wrench_client</elem>
       <elem name="right_arm_wrench_client">right_arm_wrench_client</elem>
       <elem name="left_arm_wrench_client">left_arm_wrench_client</elem>
       <elem name="mas-remapper">mas-remapper</elem>
+      <!-- <elem name="realsense">realsense</elem> -->
+      <!-- <elem name="jabra">jabra</elem> -->
     </paramlist>
   </action>
 
