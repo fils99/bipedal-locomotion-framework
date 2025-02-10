@@ -5,19 +5,12 @@
 
 <devices>
 
-  <!--device xmlns:xi="http://www.w3.org/2001/XInclude" name="head_imu_acc" type="multipleanalogsensorsclient">
+  <!-- <device xmlns:xi="http://www.w3.org/2001/XInclude" name="head_imu_acc" type="multipleanalogsensorsclient">
     <param name="remote">/ergocub/head/inertials</param>
     <param name="local">/yarp_robot_logger/head/inertials</param>
     <param name="timeout">0.5</param>
     <param name="carrier">fast_tcp</param>
-  </device-->
-
-  <device xmlns:xi="http://www.w3.org/2001/XInclude" name="waist_imu_client" type="multipleanalogsensorsclient">
-    <param name="remote">/ergocub/waist/inertials</param>
-    <param name="local">/yarp_robot_logger/waist/inertials</param>
-    <param name="timeout">0.5</param>
-    <param name="carrier">fast_tcp</param>
-  </device>
+  </device> -->
 
   <device xmlns:xi="http://www.w3.org/2001/XInclude" name="left_arm_imu_client" type="multipleanalogsensorsclient">
     <param name="remote">/ergocub/left_arm/imu</param>
@@ -57,6 +50,13 @@
   <device xmlns:xi="http://www.w3.org/2001/XInclude" name="right_leg_imu_client" type="multipleanalogsensorsclient">
     <param name="remote">/ergocub/right_leg/imu</param>
     <param name="local">/yarp_robot_logger/right_leg/imu</param>
+    <param name="timeout">0.5</param>
+    <param name="carrier">fast_tcp</param>
+  </device>
+
+  <device xmlns:xi="http://www.w3.org/2001/XInclude" name="waist_imu_client" type="multipleanalogsensorsclient">
+    <param name="remote">/ergocub/waist/inertials</param>
+    <param name="local">/yarp_robot_logger/waist/imu</param>
     <param name="timeout">0.5</param>
     <param name="carrier">fast_tcp</param>
   </device>

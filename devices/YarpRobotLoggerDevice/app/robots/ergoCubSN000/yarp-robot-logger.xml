@@ -17,6 +17,7 @@ BSD-3-Clause license. -->
 
   <param name="video_codec_code">mp4v</param>
   <param name="port_prefix">/yarp-robot-logger</param>
+  <param name="log_text">true</param>
   <param name="text_logging_subnames">("ergocub-torso/yarprobotinterface")</param>
   <!-- <param name="code_status_cmd_prefixes">("ssh ergocub@10.0.2.2" "ssh ergocub@10.0.2.3")</param> -->
 
@@ -25,104 +26,20 @@ BSD-3-Clause license. -->
   </group>
 
   <group name="ExogenousSignals">
-   <param name="vectors_collection_exogenous_inputs">("Walking", "RDERightLeg", "RDELeftLeg", "RDETorso", "RDERightArm", "RDELeftArm", "balancing", "pdgravity", "friction_r_lower_leg", "friction_r_upper_leg")</param>
+    <param name="vectors_collection_exogenous_inputs">("Walking", "MomentumBasedTorqueControl")</param>
     <param name="vectors_exogenous_inputs">()</param>
-
-    <group name="friction_r_lower_leg">
-      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/r_lower_leg"</param>
-      <param name="remote">"/hijackingTrqCrl/r_lower_leg"</param>
-      <param name="signal_name">"friction_r_lower_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-     <group name="friction_r_upper_leg">
-      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="remote">"/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="signal_name">"friction_r_upper_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="balancing">
-      <param name="local">"/yarp-robot-logger/balancing"</param>
-      <param name="remote">"/momentum-based-torque-control/log"</param>
-      <param name="signal_name">"balancing"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="pdgravity">
-      <param name="local">"/yarp-robot-logger/pdgravity"</param>
-      <param name="remote">"/pdgravity/logger"</param>
-      <param name="signal_name">"pdgravity"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="friction_r_lower_leg">
-      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/r_lower_leg"</param>
-      <param name="remote">"/hijackingTrqCrl/r_lower_leg"</param>
-      <param name="signal_name">"friction_r_lower_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="friction_r_upper_leg">
-      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="remote">"/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="signal_name">"friction_r_upper_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDERightLeg">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/right_leg"</param>
-      <param name="remote">"/robot-dynamics-estimator/right_leg"</param>
-      <param name="signal_name">"rde_right_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDELeftLeg">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/left_leg"</param>
-      <param name="remote">"/robot-dynamics-estimator/left_leg"</param>
-      <param name="signal_name">"rde_left_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDETorso">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/torso"</param>
-      <param name="remote">"/robot-dynamics-estimator/torso"</param>
-      <param name="signal_name">"rde_torso"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDERightArm">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/right_arm"</param>
-      <param name="remote">"/robot-dynamics-estimator/right_arm"</param>
-      <param name="signal_name">"rde_right_arm"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDELeftArm">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/left_arm"</param>
-      <param name="remote">"/robot-dynamics-estimator/left_arm"</param>
-      <param name="signal_name">"rde_left_arm"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="RDETorso">
-      <param name="local">"/yarp-robot-logger/exogenous_signals/rde/torso"</param>
-      <param name="remote">"/robot-dynamics-estimator/torso"</param>
-      <param name="signal_name">"rde_torso"</param>
-      <param name="carrier">"udp"</param>
-    </group>
-
-    <group name="friction_r_upper_leg">
-      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="remote">"/hijackingTrqCrl/r_upper_leg"</param>
-      <param name="signal_name">"friction_r_upper_leg"</param>
-      <param name="carrier">"udp"</param>
-    </group>
 
     <group name="Walking">
       <param name="local">"/yarp-robot-logger/exogenous_signals/walking"</param>
       <param name="remote">"/walking-coordinator/logger"</param>
       <param name="signal_name">"walking"</param>
+      <param name="carrier">"udp"</param>
+    </group>
+
+    <group name="MomentumBasedTorqueControl">
+      <param name="local">"/yarp-robot-logger/exogenous_signals/momentum_based_torque_control"</param>
+      <param name="remote">"/momentum-based-torque-control/log"</param>
+      <param name="signal_name">"momentum_based_torque_control"</param>
       <param name="carrier">"udp"</param>
     </group>
   </group>
@@ -140,14 +57,14 @@ BSD-3-Clause license. -->
     <param name="stream_joint_states">true</param>
     <param name="stream_motor_states">true</param>
     <param name="stream_inertials">true</param>
-    <param name="stream_cartesian_wrenches">false</param>
+    <param name="stream_cartesian_wrenches">true</param>
     <param name="stream_forcetorque_sensors">true</param>
     <param name="stream_pids">false</param>
     <param name="stream_motor_PWM">true</param>
     <param name="stream_temperatures">true</param>
 
     <group name="RemoteControlBoardRemapper">
-      <param name="joints_list">("torso_roll", "torso_yaw", "l_shoulder_pitch", "l_shoulder_roll", "l_shoulder_yaw", "l_elbow", "r_shoulder_pitch", "r_shoulder_roll", "r_shoulder_yaw", "r_elbow", "l_hip_pitch", "l_hip_roll", "l_hip_yaw", "l_knee", "l_ankle_pitch", "l_ankle_roll", "r_hip_pitch", "r_hip_roll", "r_hip_yaw", "r_knee", "r_ankle_pitch", "r_ankle_roll")</param>
+      <param name="joints_list">("neck_pitch", "neck_roll", "neck_yaw", "camera_tilt", "torso_roll", "torso_yaw", "l_shoulder_pitch", "l_shoulder_roll", "l_shoulder_yaw", "l_elbow", "l_wrist_roll", "l_wrist_pitch",  "l_wrist_yaw", "l_thumb_add", "l_thumb_oc", "l_index_oc", "l_middle_oc", "l_ring_pinky_oc", "r_shoulder_pitch", "r_shoulder_roll", "r_shoulder_yaw", "r_elbow", "r_wrist_roll", "r_wrist_pitch",  "r_wrist_yaw", "r_thumb_add", "r_thumb_oc", "r_index_oc", "r_middle_oc", "r_ring_pinky_oc", "l_hip_pitch", "l_hip_roll", "l_hip_yaw", "l_knee", "l_ankle_pitch", "l_ankle_roll", "r_hip_pitch", "r_hip_roll", "r_hip_yaw", "r_knee", "r_ankle_pitch", "r_ankle_roll")</param>
     </group>
 
     <group name="SixAxisForceTorqueSensors">
@@ -158,15 +75,15 @@ BSD-3-Clause license. -->
       <param name="temperature_sensors_list">(l_arm_ft, r_arm_ft, l_foot_front_ft, l_foot_rear_ft, r_foot_front_ft, r_foot_rear_ft, l_leg_ft, r_leg_ft)</param>
     </group>
 
-    <!-- <group name="CartesianWrenches">
-      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client")</param> 
-    </group>-->
+    <group name="CartesianWrenches">
+      <param name="cartesian_wrenches_list">("left_front_wrench_client", "left_rear_wrench_client", "right_front_wrench_client", "right_rear_wrench_client")</param>
+    </group>
 
     <group name="InertialSensors">
-      <param name="accelerometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
-      <param name="gyroscopes_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
-      <param name="magnetometers_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
-      <param name="orientation_sensors_list">(waist_imu_0, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu, r_arm_ft_imu, l_arm_ft_imu)</param>
+      <param name="accelerometers_list">(waist_imu_0, l_arm_ft_imu, r_arm_ft_imu, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="gyroscopes_list">(waist_imu_0, l_arm_ft_imu, r_arm_ft_imu, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="magnetometers_list">(waist_imu_0, l_arm_ft_imu, r_arm_ft_imu, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
+      <param name="orientation_sensors_list">(waist_imu_0, l_arm_ft_imu, r_arm_ft_imu, l_foot_front_ft_imu, l_foot_rear_ft_imu, r_foot_front_ft_imu, r_foot_rear_ft_imu, l_leg_ft_imu, r_leg_ft_imu)</param>
     </group>
 
   </group>
@@ -175,16 +92,14 @@ BSD-3-Clause license. -->
   <action phase="startup" level="15" type="attach">
     <paramlist name="networks">
       <elem name="all_joints">all_joints_mc</elem>
-      <!-- <elem name="left_front_wrench_client">left_front_wrench_client</elem>
+      <elem name="left_front_wrench_client">left_front_wrench_client</elem>
       <elem name="left_rear_wrench_client">left_rear_wrench_client</elem>
       <elem name="right_front_wrench_client">right_front_wrench_client</elem>
-      <elem name="right_rear_wrench_client">right_rear_wrench_client</elem> -->
+      <elem name="right_rear_wrench_client">right_rear_wrench_client</elem>
+      <elem name="jabra">jabra</elem>
       <!-- <elem name="right_arm_wrench_client">right_arm_wrench_client</elem>
       <elem name="left_arm_wrench_client">left_arm_wrench_client</elem> -->
-      <elem name="jabra">jabra</elem>
       <elem name="mas-remapper">mas-remapper</elem>
-      <!-- <elem name="realsense">realsense</elem> -->
-      <!-- <elem name="jabra">jabra</elem> -->
     </paramlist>
   </action>
 
