@@ -483,7 +483,9 @@ def main():
 
     # Get joint limits
     safety_threshold = param_handler.get_parameter_float("safety_threshold")
+    print("safety_threshold in degree", safety_threshold)
     safety_threshold = np.deg2rad(safety_threshold)
+    print("safety_threshold in rad", safety_threshold)
     use_safety_threshold_for_starting_position = param_handler.get_parameter_bool(
         "use_safety_threshold_for_starting_position"
     )
@@ -739,6 +741,16 @@ def main():
                     np.abs(joint_positions[joint_index] - upper_limits[joint_index])
                     < safety_threshold
                 ):
+                    print("np.abs(joint_positions[joint_index] - lower_limits[joint_index])< safety_threshold", np.abs(joint_positions[joint_index] - lower_limits[joint_index])
+                    < safety_threshold)
+
+                    print("np.abs(joint_positions[joint_index] - upper_limits[joint_index])< safety_threshold", np.abs(joint_positions[joint_index] - upper_limits[joint_index])
+                    < safety_threshold)
+
+                    print("upper_limits[joint_index]", upper_limits[joint_index])
+                    print("lower_limits[joint_index]", lower_limits[joint_index])
+                    print("joint_positions[joint_index]", joint_positions[joint_index])
+                    print("safety_threshold", safety_threshold)
                     # set the control mode to position
                     control_modes[
                         joint_index
