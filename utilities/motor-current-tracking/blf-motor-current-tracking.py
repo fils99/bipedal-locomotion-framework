@@ -15,6 +15,8 @@ import numpy as np
 import numpy.typing as npt
 import yarp
 
+import idyntree.bindings as iDynTree
+
 logPrefix = "[MotorCurrentTrackingApplication]"
 
 ParamHandler = Type[blf.parameters_handler.YarpParametersHandler]
@@ -381,6 +383,43 @@ def create_ctrl_c_handler(
     return ctrl_c_handler
 
 
+def compute_bias_forces(
+    dynComp: iDynTree.KinDynComputations,
+    sensor_bridge: SensorBridge,
+    generalizedBiasForcesVector: iDynTree.FreeFloatingGeneralizedTorques
+    ) -> bool:
+
+    # We need some dynamic quantities to compute the bias forces
+
+    # 1) homogeneous transformation matrix from the base to the world
+    base_link = "root_link"   # TODO avoid hardocoding
+    index_base = dynComp.getFrameIndex(base_link)
+    world_T_base = dynComp.getWorldTransform(index_base)
+
+    # 2) joint positions
+    are_joints_ok, joint_positions, _ = sensor_bridge.get_joint_positions()
+    if not are_joints_ok:
+        raise RuntimeError("Could not get joint positions")
+
+    # 3) base velocity
+    base_velocity = 6 * [0.0]
+
+    # 4) joint velocities
+    are_joints_ok, joint_velocities, _ = sensor_bridge.get_joint_velocities()
+
+    # 5) gravity vector
+    g = [0.0, 0.0, -9.81]
+
+    # Now we can set the robot state
+    if (not dynComp.setRobotState(world_T_base, joint_positions, base_velocity, joint_velocities, g)):
+        raise RuntimeError("Could not set robot state")
+
+    if (not dynComp.generalizedBiasForces(generalizedBiasForcesVector)):
+        raise RuntimeError("Could not compute generalized bias forces")
+    
+    return bool
+
+
 def main():
 
     # Create the argument parser
@@ -444,6 +483,9 @@ def main():
     bypass_motor_current_measure = param_handler.get_parameter_vector_bool(
         "bypass_motor_current_measure"
     )
+
+    compensate_bias_forces = param_handler.get_parameter_bool("compensate_bias_forces")
+
     if len(bypass_motor_current_measure) != len(joints_to_control):
         raise ValueError(
             "{} The number of joints must be equal to the size of the bypass_motor_current_measure parameter".format(
@@ -532,6 +574,14 @@ def main():
     if not are_joints_ok:
         raise RuntimeError("{} Unable to get the joint positions".format(logPrefix))
 
+    # Load the URDF file and initialize the KinDynComputations object
+    URDF_FILE = os.path.join(os.getenv('ROBOTOLOGY_SUPERBUILD_INSTALL_PREFIX'), 'share/ergoCub/robots', os.getenv('YARP_ROBOT_NAME'), 'model.urdf')
+    dynComp = iDynTree.KinDynComputations()
+    mdlLoader = iDynTree.ModelLoader()
+    if (not mdlLoader.loadReducedModelFromFile(URDF_FILE, joints_to_control)):
+        raise RuntimeError("Could not load model from file: " + URDF_FILE)
+    dynComp.loadRobotModel(mdlLoader.model())
+    
     # Create the vectors collection server for logging
     vectors_collection_server = blf.yarp_utilities.VectorsCollectionServer()
     if not vectors_collection_server.initialize(
@@ -604,6 +654,9 @@ def main():
     blf.log().info("{} Start".format(logPrefix))
 
     opposite_direction = False
+
+    # Initalize iDynTree object generalizedBiasForcesVector 
+    generalizedBiasForcesVector_idyn = iDynTree.FreeFloatingGeneralizedTorques(mdlLoader.model())  
 
     for counter, starting_position in enumerate(starting_positions):
 
@@ -762,6 +815,14 @@ def main():
                         )
                     )
 
+            # get the bias forces
+            if compensate_bias_forces:
+                if not compute_bias_forces(dynComp, sensor_bridge, generalizedBiasForcesVector_idyn):
+                    raise RuntimeError("{} Unable to compute the bias forces".format(logPrefix))
+                generalizedBiasForcesVector = generalizedBiasForcesVector_idyn.jointTorques().toNumPy()
+            else:
+                generalizedBiasForcesVector = len(joints_to_control) * [0.0]
+
             # get the current/torque references
             current_reference = []
             for joint_idx, trajectory in enumerate(trajectories):
@@ -774,6 +835,7 @@ def main():
                             current_reference.append(
                                 trajectory[traj_index]
                                 / MotorParameters.k_tau[joints_to_control[joint_idx]]
+                                + generalizedBiasForcesVector[joint_idx] 
                             )
                         else:
                             # check if the current is within the safety limits
@@ -788,7 +850,9 @@ def main():
                                         logPrefix, joints_to_control[joint_idx]
                                     )
                                 )
-                            current_reference.append(trajectory[traj_index])
+                            current_reference.append(trajectory[traj_index] 
+                                                     + generalizedBiasForcesVector[joint_idx] * MotorParameters.k_tau[joints_to_control[joint_idx]]
+                                                     )
                 else:
                     # if the trajectory is over, switch to position control with
                     # the the posiition reference as the last measured position
