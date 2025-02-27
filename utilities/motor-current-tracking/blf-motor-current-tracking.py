@@ -484,11 +484,20 @@ def main():
         "bypass_motor_current_measure"
     )
 
-    compensate_bias_forces = param_handler.get_parameter_bool("compensate_bias_forces")
-
     if len(bypass_motor_current_measure) != len(joints_to_control):
         raise ValueError(
             "{} The number of joints must be equal to the size of the bypass_motor_current_measure parameter".format(
+                logPrefix
+            )
+        )
+    
+    compensation_bias_forces_factor = param_handler.get_parameter_vector_float(
+        "compensation_bias_forces_factor"
+        )
+
+    if len(compensation_bias_forces_factor) != len(joints_to_control):
+        raise ValueError(
+            "{} The number of joints must be equal to the size of the compensation_bias_forces_factor parameter".format(
                 logPrefix
             )
         )
@@ -816,12 +825,9 @@ def main():
                     )
 
             # get the bias forces
-            if compensate_bias_forces:
-                if not compute_bias_forces(dynComp, sensor_bridge, generalizedBiasForcesVector_idyn):
-                    raise RuntimeError("{} Unable to compute the bias forces".format(logPrefix))
-                generalizedBiasForcesVector = generalizedBiasForcesVector_idyn.jointTorques().toNumPy()
-            else:
-                generalizedBiasForcesVector = len(joints_to_control) * [0.0]
+            if not compute_bias_forces(dynComp, sensor_bridge, generalizedBiasForcesVector_idyn):
+                raise RuntimeError("{} Unable to compute the bias forces".format(logPrefix))
+            generalizedBiasForcesVector = generalizedBiasForcesVector_idyn.jointTorques().toNumPy()
 
             # get the current/torque references
             current_reference = []
@@ -835,14 +841,14 @@ def main():
                             current_reference.append(
                                 trajectory[traj_index]
                                 / MotorParameters.k_tau[joints_to_control[joint_idx]]
-                                + generalizedBiasForcesVector[joint_idx] 
+                                + generalizedBiasForcesVector[joint_idx] * compensation_bias_forces_factor[joint_idx]
                             )
                         else:
                             # check if the current is within the safety limits
                             if (
                                 np.abs(trajectory[traj_index])
                                 > MotorParameters.max_safety_current[
-                                    joints_to_control[joint_idx]
+                                    joints_to_control[joint_idx] 
                                 ]
                             ):
                                 RuntimeError(
@@ -851,7 +857,7 @@ def main():
                                     )
                                 )
                             current_reference.append(trajectory[traj_index] 
-                                                     + generalizedBiasForcesVector[joint_idx] * MotorParameters.k_tau[joints_to_control[joint_idx]]
+                                                     + generalizedBiasForcesVector[joint_idx] * MotorParameters.k_tau[joints_to_control[joint_idx]] * compensation_bias_forces_factor[joint_idx]
                                                      )
                 else:
                     # if the trajectory is over, switch to position control with
