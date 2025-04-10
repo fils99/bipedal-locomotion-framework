@@ -84,6 +84,13 @@ BSD-3-Clause license. -->
       <param name="signal_name">"grid_tracking"</param>
       <param name="carrier">"udp"</param>
     </group>
+
+    <group name="friction_l_upper_leg">
+      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/l_upper_leg"</param>
+      <param name="remote">"/hijackingTrqCrl/l_upper_leg"</param>
+      <param name="signal_name">"friction_l_upper_leg"</param>
+      <param name="carrier">"udp"</param>
+    </group>
   </group>
 
   <group name="RobotCameraBridge">
