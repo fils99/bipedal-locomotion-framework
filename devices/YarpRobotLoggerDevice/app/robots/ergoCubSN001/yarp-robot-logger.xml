@@ -39,7 +39,7 @@ BSD-3-Clause license. -->
   </group>
 
   <group name="ExogenousSignals">
-    <param name="vectors_collection_exogenous_inputs">("Walking", "GridTracking","cmw", "Balancing", "CurrentControl")</param>
+    <param name="vectors_collection_exogenous_inputs">("Walking", "GridTracking","cmw", "Balancing", "CurrentControl", "friction_l_upper_leg")</param>
     <param name="vectors_exogenous_inputs">()</param>
 
     <group name="Walking">
