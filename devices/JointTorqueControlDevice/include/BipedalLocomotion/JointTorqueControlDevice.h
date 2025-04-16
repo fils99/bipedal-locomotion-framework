@@ -208,6 +208,8 @@ private:
         std::mutex mutex;
         std::vector<double> m_frictionLogging;
         std::vector<double> m_currentLogging;
+        std::vector<double> m_jointVelocitiesKFLogging;
+        std::vector<double> m_motorVelocitiesKFLogging;
     } m_status;
     bool m_publishEstimationVectorsCollection{false}; /**< True if the estimation is published. */
 
