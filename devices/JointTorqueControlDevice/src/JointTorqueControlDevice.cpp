@@ -611,6 +611,8 @@ void JointTorqueControlDevice::computeDesiredCurrents()
                     std::lock_guard<std::mutex> lockOutput(m_status.mutex);
                     m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
                     m_status.m_currentLogging[j] = desiredMotorCurrents[j];
+                    m_status.m_jointVelocitiesKFLogging[j] = measuredJointVelocities[j] * M_PI / 180.0;
+                    m_status.m_motorVelocitiesKFLogging[j] = measuredMotorVelocities[j] * M_PI / 180.0;
                 }
             }
         }
@@ -1197,6 +1199,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
         m_vectorsCollectionServer.populateMetadata("motor_currents::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("joint_velocities::estimatedByKF", joint_list);
+        m_vectorsCollectionServer.populateMetadata("motor_velocities::estimatedByKF", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
     }
@@ -1239,6 +1243,10 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_currentLogging);
             m_vectorsCollectionServer.populateData("friction_torques::estimated",
                                                    m_status.m_frictionLogging);
+            m_vectorsCollectionServer.populateData("joint_velocities::estimatedByKF",
+                                                   m_status.m_jointVelocitiesKFLogging);
+            m_vectorsCollectionServer.populateData("motor_velocities::estimatedByKF",
+                                                   m_status.m_motorVelocitiesKFLogging);
             m_vectorsCollectionServer.sendData();
         }
 
@@ -1414,6 +1422,8 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         m_axisNames.resize(axes);
         m_status.m_frictionLogging.resize(axes, 1);
         m_status.m_currentLogging.resize(axes, 1);
+        m_status.m_jointVelocitiesKFLogging.resize(axes, 1);
+        m_status.m_motorVelocitiesKFLogging.resize(axes, 1);
     }
 
     // Initialize variables for KF idyntree
