@@ -9,6 +9,7 @@
 #include <deque>
 #include <string>
 #include <cmath>
+#include <numeric>
 
 #include <Eigen/Dense>
 
@@ -30,7 +31,7 @@ struct PINNFrictionEstimator::Impl
 
     std::deque<float> jointVelocityBuffer;
     std::deque<float> motorVelocityBuffer;
-    double inputMotorTemperature;
+    std::deque<float> motorTemperatureBuffer;
     bool includeMotorTemperatureAsInput = false;
 
     size_t historyLength;
@@ -119,6 +120,7 @@ bool PINNFrictionEstimator::initialize(const std::string& networkModelPath,
 
     m_pimpl->jointVelocityBuffer.resize(m_pimpl->historyLength);
     m_pimpl->motorVelocityBuffer.resize(m_pimpl->historyLength);
+    m_pimpl->motorTemperatureBuffer.resize(m_pimpl->historyLength);
 
     // create tensor required by onnx
     m_pimpl->structuredInput.tensor
@@ -151,7 +153,7 @@ void PINNFrictionEstimator::resetEstimator()
 {
     m_pimpl->motorVelocityBuffer.clear();
     m_pimpl->jointVelocityBuffer.clear();
-    m_pimpl->inputMotorTemperature = 0.0;
+    m_pimpl->motorTemperatureBuffer.clear();
 }
 
 bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
@@ -164,6 +166,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
         // The buffer is full, remove the oldest element
         m_pimpl->motorVelocityBuffer.pop_front();
         m_pimpl->jointVelocityBuffer.pop_front();
+        m_pimpl->motorTemperatureBuffer.pop_front();
     }
 
     // Push element into the queue
@@ -176,6 +179,36 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
         // The buffer is not full yet
         return false;
     }
+
+    // Detect outlier in motor temperature
+    double adjustedMotorTemperature = inputMotorTemperature;
+
+    if (!m_pimpl->motorTemperatureBuffer.empty())
+    {
+        double sum = std::accumulate(m_pimpl->motorTemperatureBuffer.begin(),
+                                     m_pimpl->motorTemperatureBuffer.end(),
+                                     0.0);
+        double mean = sum / m_pimpl->motorTemperatureBuffer.size();
+
+        double sqSum = std::inner_product(m_pimpl->motorTemperatureBuffer.begin(),
+                                          m_pimpl->motorTemperatureBuffer.end(),
+                                          m_pimpl->motorTemperatureBuffer.begin(),
+                                          0.0);
+        double stdDev = std::sqrt(sqSum / m_pimpl->motorTemperatureBuffer.size() - mean * mean);
+
+        // Define the threshold for outlier detection (e.g., 3 standard deviations)
+        double lowerBound = mean - 3 * stdDev;
+        double upperBound = mean + 3 * stdDev;
+
+        if (inputMotorTemperature < lowerBound || inputMotorTemperature > upperBound)
+        {
+            // Replace outlier with the last valid value
+            adjustedMotorTemperature = m_pimpl->motorTemperatureBuffer.back();
+        }
+    }
+
+    // Add the adjusted value to the buffer
+    m_pimpl->motorTemperatureBuffer.push_back(adjustedMotorTemperature);
 
     // Fill the input
     // Copy the joint positions and then the motor positions in the
@@ -192,7 +225,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
     index += m_pimpl->historyLength;
     if (m_pimpl->includeMotorTemperatureAsInput)
     {
-        m_pimpl->structuredInput.rawData[index] = static_cast<float>(m_pimpl->inputMotorTemperature);
+        m_pimpl->structuredInput.rawData[index] = static_cast<float>(adjustedMotorTemperature);
         index += 1;
 
     }
