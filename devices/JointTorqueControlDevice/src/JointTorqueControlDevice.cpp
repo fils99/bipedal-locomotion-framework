@@ -1199,8 +1199,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
         m_vectorsCollectionServer.populateMetadata("motor_currents::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
-        m_vectorsCollectionServer.populateMetadata("joint_velocities::estimatedByKF", joint_list);
-        m_vectorsCollectionServer.populateMetadata("motor_velocities::estimatedByKF", joint_list);
+        m_vectorsCollectionServer.populateMetadata("joint_velocities::KF::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("motor_velocities::KF::estimated", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
     }
@@ -1243,9 +1243,9 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_currentLogging);
             m_vectorsCollectionServer.populateData("friction_torques::estimated",
                                                    m_status.m_frictionLogging);
-            m_vectorsCollectionServer.populateData("joint_velocities::estimatedByKF",
+            m_vectorsCollectionServer.populateData("joint_velocities::KF::estimated",
                                                    m_status.m_jointVelocitiesKFLogging);
-            m_vectorsCollectionServer.populateData("motor_velocities::estimatedByKF",
+            m_vectorsCollectionServer.populateData("motor_velocities::KF::estimated",
                                                    m_status.m_motorVelocitiesKFLogging);
             m_vectorsCollectionServer.sendData();
         }
