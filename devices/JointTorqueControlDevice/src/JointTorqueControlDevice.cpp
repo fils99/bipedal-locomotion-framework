@@ -530,6 +530,7 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
         if (!frictionEstimators[joint]->estimate(measuredMotorVelocities[joint] * M_PI / 180.0,
                                                  measuredJointVelocities[joint] * M_PI / 180.0,
                                                  measuredMotorTemperatures[joint],
+                                                 measuredMotorTemperaturesNoOutliers[joint],
                                                  frictionTorque))
         {
             frictionTorque = 0.0;
@@ -613,6 +614,7 @@ void JointTorqueControlDevice::computeDesiredCurrents()
                     m_status.m_currentLogging[j] = desiredMotorCurrents[j];
                     m_status.m_jointVelocitiesKFLogging[j] = measuredJointVelocities[j] * M_PI / 180.0;
                     m_status.m_motorVelocitiesKFLogging[j] = measuredMotorVelocities[j] * M_PI / 180.0;
+                    m_status.m_motorTemperatureNoOutliersLogging[j] = measuredMotorTemperaturesNoOutliers[j];
                 }
             }
         }
@@ -1201,6 +1203,7 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
         m_vectorsCollectionServer.populateMetadata("joint_velocities::KF::estimated", joint_list);
         m_vectorsCollectionServer.populateMetadata("motor_velocities::KF::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("motor_temperature::removed_outliers", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
     }
@@ -1247,6 +1250,8 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_jointVelocitiesKFLogging);
             m_vectorsCollectionServer.populateData("motor_velocities::KF::estimated",
                                                    m_status.m_motorVelocitiesKFLogging);
+            m_vectorsCollectionServer.populateData("motor_temperature::removed_outliers",
+                                                   m_status.m_motorTemperatureNoOutliersLogging);
             m_vectorsCollectionServer.sendData();
         }
 
@@ -1413,6 +1418,7 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         measuredJointVelocities.resize(axes, 0.0);
         measuredMotorVelocities.resize(axes, 0.0);
         measuredMotorTemperatures.resize(axes, 0.0);
+        measuredMotorTemperaturesNoOutliers.resize(axes, 0.0);
         measuredJointTorques.resize(axes, 0.0);
         torqueIntegralErrors.resize(axes, 0.0);
         measuredJointPositions.resize(axes, 0.0);
@@ -1424,6 +1430,7 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         m_status.m_currentLogging.resize(axes, 1);
         m_status.m_jointVelocitiesKFLogging.resize(axes, 1);
         m_status.m_motorVelocitiesKFLogging.resize(axes, 1);
+        m_status.m_motorTemperatureNoOutliersLogging.resize(axes, 1);
     }
 
     // Initialize variables for KF idyntree

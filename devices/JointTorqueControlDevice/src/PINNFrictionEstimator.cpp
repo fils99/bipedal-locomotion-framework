@@ -159,6 +159,7 @@ void PINNFrictionEstimator::resetEstimator()
 bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
                                      double inputJointVelocity,
                                      double inputMotorTemperature,
+                                     double& adjustedMotorTemperature,
                                      double& output)
 {
     if (m_pimpl->motorVelocityBuffer.size() == m_pimpl->historyLength)
@@ -181,7 +182,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
     }
 
     // Detect outlier in motor temperature
-    double adjustedMotorTemperature = inputMotorTemperature;
+    adjustedMotorTemperature = inputMotorTemperature;
 
     if (!m_pimpl->motorTemperatureBuffer.empty())
     {
