@@ -177,6 +177,7 @@ private:
     yarp::sig::Vector measuredJointVelocities;
     yarp::sig::Vector measuredMotorVelocities;
     yarp::sig::Vector measuredMotorTemperatures;
+    yarp::sig::Vector measuredMotorTemperaturesNoOutliers;
     yarp::sig::Vector measuredJointTorques;
     yarp::sig::Vector measuredJointPositions;
     yarp::sig::Vector measuredMotorPositions;
@@ -210,6 +211,7 @@ private:
         std::vector<double> m_currentLogging;
         std::vector<double> m_jointVelocitiesKFLogging;
         std::vector<double> m_motorVelocitiesKFLogging;
+        std::vector<double> m_motorTemperatureNoOutliersLogging;
     } m_status;
     bool m_publishEstimationVectorsCollection{false}; /**< True if the estimation is published. */
 
