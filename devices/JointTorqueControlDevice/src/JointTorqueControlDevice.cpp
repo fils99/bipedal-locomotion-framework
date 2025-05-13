@@ -362,7 +362,8 @@ bool JointTorqueControlDevice::setPINNModel(const std::string& jointName,
 
         if (!frictionEstimators[index]->initialize(pinnParameters[index].modelPath,
                                                pinnParameters[index].threadNumber,
-                                               pinnParameters[index].threadNumber))
+                                               pinnParameters[index].threadNumber,
+                                               pinnParameters[index].inputType))
         {
             log()->error("[JointTorqueControlDevice::setPINNModel] Failed to re-initialize friction estimator with model {}", pinnModelName);
             return false;
@@ -529,6 +530,8 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
         // Test network with inputs position error motor side, joint velocity and motor temperature
         if (!frictionEstimators[joint]->estimate(measuredMotorVelocities[joint] * M_PI / 180.0,
                                                  measuredJointVelocities[joint] * M_PI / 180.0,
+                                                 measuredMotorPositions[joint] * M_PI / 180.0,
+                                                 measuredJointPositions[joint] * M_PI / 180.0,
                                                  measuredMotorTemperatures[joint],
                                                  measuredMotorTemperaturesNoOutliers[joint],
                                                  frictionTorque))
@@ -953,11 +956,19 @@ bool JointTorqueControlDevice::loadFrictionParams(
             return false;
         }
 
+        std::vector<int> input_type;
+        if (!frictionGroup->getParameter("input_type", input_type))
+        {
+            log()->error("{} Parameter `input_type` not found", logPrefix);
+            return false;
+        }
+
         for (int i = 0; i < models.size(); i++)
         {
             std::string modelFilePath{rf.findFileByName(models[i])};
             pinnParameters[i].modelPath = modelFilePath;
             pinnParameters[i].threadNumber = threads;
+            pinnParameters[i].inputType = input_type[i];
         }
     }
 
@@ -1156,7 +1167,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
             if (!frictionEstimators[i]->initialize(pinnParameters[i].modelPath,
                                                    pinnParameters[i].threadNumber,
-                                                   pinnParameters[i].threadNumber))
+                                                   pinnParameters[i].threadNumber,
+                                                   pinnParameters[i].inputType))
             {
                 log()->error("{} Failed to initialize friction estimator", logPrefix);
                 return false;

@@ -92,6 +92,7 @@ struct PINNParameters
 {
     std::string modelPath; /**< PINN model path */
     int threadNumber; /**< number of threads */
+    int inputType; /**< type of input */
 
     /**
      * Reset the parameters
