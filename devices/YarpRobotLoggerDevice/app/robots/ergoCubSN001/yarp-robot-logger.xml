@@ -39,7 +39,7 @@ BSD-3-Clause license. -->
   </group>
 
   <group name="ExogenousSignals">
-    <param name="vectors_collection_exogenous_inputs">("Walking", "GridTracking","cmw", "Balancing", "CurrentControl", "friction_l_upper_leg", "friction_r_upper_leg")</param>
+    <param name="vectors_collection_exogenous_inputs">("Walking", "GridTracking","cmw", "Balancing", "CurrentControl", "friction_l_upper_leg", "friction_l_lower_leg", "friction_r_upper_leg")</param>
     <param name="vectors_exogenous_inputs">()</param>
     <param name="string_exogenous_inputs">()</param>
 
@@ -89,6 +89,13 @@ BSD-3-Clause license. -->
       <param name="local">"/yarp-robot-logger/hijackingTrqCrl/l_upper_leg"</param>
       <param name="remote">"/hijackingTrqCrl/l_upper_leg"</param>
       <param name="signal_name">"friction_l_upper_leg"</param>
+      <param name="carrier">"udp"</param>
+    </group>
+
+    <group name="friction_l_lower_leg">
+      <param name="local">"/yarp-robot-logger/hijackingTrqCrl/l_lower_leg"</param>
+      <param name="remote">"/hijackingTrqCrl/l_lower_leg"</param>
+      <param name="signal_name">"friction_l_lower_leg"</param>
       <param name="carrier">"udp"</param>
     </group>
 
