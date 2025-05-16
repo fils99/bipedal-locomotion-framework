@@ -173,6 +173,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
     // Push element into the queue
     m_pimpl->motorVelocityBuffer.push_back(inputMotorVelocity);
     m_pimpl->jointVelocityBuffer.push_back(inputJointVelocity);
+    m_pimpl->motorTemperatureBuffer.push_back(inputMotorTemperature);
 
     // Check if the buffer is full
     if (m_pimpl->motorVelocityBuffer.size() < m_pimpl->historyLength)
@@ -183,23 +184,28 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
 
     // Detect outlier in motor temperature
     adjustedMotorTemperature = inputMotorTemperature;
-
-    if (!m_pimpl->motorTemperatureBuffer.empty())
+    if (m_pimpl->motorTemperatureBuffer.size() >= (m_pimpl->historyLength))
     {
         double sum = std::accumulate(m_pimpl->motorTemperatureBuffer.begin(),
                                      m_pimpl->motorTemperatureBuffer.end(),
                                      0.0);
         double mean = sum / m_pimpl->motorTemperatureBuffer.size();
 
-        double sqSum = std::inner_product(m_pimpl->motorTemperatureBuffer.begin(),
-                                          m_pimpl->motorTemperatureBuffer.end(),
-                                          m_pimpl->motorTemperatureBuffer.begin(),
-                                          0.0);
-        double stdDev = std::sqrt(sqSum / m_pimpl->motorTemperatureBuffer.size() - mean * mean);
+        double sqDiffSum = 0.0;
+        for (double x : m_pimpl->motorTemperatureBuffer) {
+            double diff = x - mean;
+            sqDiffSum += diff * diff;
+        }
+
+        double variance = sqDiffSum / m_pimpl->motorTemperatureBuffer.size();
+        double stdDev = std::sqrt(variance) + 1e-1;
 
         // Define the threshold for outlier detection (e.g., 3 standard deviations)
-        double lowerBound = mean - 3 * stdDev;
-        double upperBound = mean + 3 * stdDev;
+        double lowerBound = mean - 3.0 * stdDev;
+        double upperBound = mean + 3.0 * stdDev;
+
+        // We need to remove the last element from the buffer
+        m_pimpl->motorTemperatureBuffer.pop_back();
 
         if (inputMotorTemperature < lowerBound || inputMotorTemperature > upperBound)
         {
@@ -255,4 +261,3 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
 
     return true;
 }
-
