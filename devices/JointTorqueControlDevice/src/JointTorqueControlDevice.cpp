@@ -956,19 +956,19 @@ bool JointTorqueControlDevice::loadFrictionParams(
             return false;
         }
 
-        std::vector<int> input_type;
-        if (!frictionGroup->getParameter("input_type", input_type))
-        {
-            log()->error("{} Parameter `input_type` not found", logPrefix);
-            return false;
-        }
-
         for (int i = 0; i < models.size(); i++)
         {
             std::string modelFilePath{rf.findFileByName(models[i])};
             pinnParameters[i].modelPath = modelFilePath;
             pinnParameters[i].threadNumber = threads;
-            pinnParameters[i].inputType = input_type[i];
+            // Extract and store the first character (ensure it's a digit)
+            if (!modelFilePath.empty() && std::isdigit(modelFilePath[0])) {
+                // Convert to int with - '0':
+                pinnParameters[i].inputType = modelFilePath[0] - '0';
+            } else {
+                log()->warn("First character of modelFilePath '{}' is not a digit", modelFilePath);
+                pinnParameters[i].inputType = -1;
+            }
         }
     }
 
