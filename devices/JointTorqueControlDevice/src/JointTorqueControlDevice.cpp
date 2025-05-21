@@ -363,7 +363,7 @@ bool JointTorqueControlDevice::setPINNModel(const std::string& jointName,
         if (!frictionEstimators[index]->initialize(pinnParameters[index].modelPath,
                                                pinnParameters[index].threadNumber,
                                                pinnParameters[index].threadNumber,
-                                               pinnParameters[index].inputType))
+                                               pinnParameters[index].modelPrefix))
         {
             log()->error("[JointTorqueControlDevice::setPINNModel] Failed to re-initialize friction estimator with model {}", pinnModelName);
             return false;
@@ -956,18 +956,35 @@ bool JointTorqueControlDevice::loadFrictionParams(
             return false;
         }
 
-        for (int i = 0; i < models.size(); i++)
-        {
+        for (int i = 0; i < models.size(); i++) {
             std::string modelFilePath{rf.findFileByName(models[i])};
             pinnParameters[i].modelPath = modelFilePath;
             pinnParameters[i].threadNumber = threads;
-            // Extract and store the first character (ensure it's a digit)
-            if (!modelFilePath.empty() && std::isdigit(modelFilePath[0])) {
-                // Convert to int with - '0':
-                pinnParameters[i].inputType = modelFilePath[0] - '0';
+
+            // Check if the file ends with .onnx
+            if (modelFilePath.size() >= 5 &&
+                modelFilePath.substr(modelFilePath.size() - 5) == ".onnx") {
+
+                // Extract just the filename from the path
+                size_t lastSlash = modelFilePath.find_last_of("/\\");
+                std::string filename = (lastSlash != std::string::npos) ?
+                                       modelFilePath.substr(lastSlash + 1) :
+                                       modelFilePath;
+
+                // Now check if the first character of the filename is a digit
+                if (!filename.empty() && std::isdigit(filename[0])) {
+                    pinnParameters[i].modelPrefix = filename[0] - '0';
+                    log()->info("Extracted input type {} from model {}",
+                               pinnParameters[i].modelPrefix, filename);
+                } else {
+                    log()->warn("First character of filename '{}' is not a digit", filename);
+                    pinnParameters[i].modelPrefix = 0;
+                }
             } else {
-                log()->warn("First character of modelFilePath '{}' is not a digit", modelFilePath);
-                pinnParameters[i].inputType = -1;
+                // Not an .onnx file
+                log()->info("Path '{}' is not an ONNX model, setting modelPrefix to default",
+                           modelFilePath);
+                pinnParameters[i].modelPrefix = 0;
             }
         }
     }
@@ -1168,7 +1185,7 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
             if (!frictionEstimators[i]->initialize(pinnParameters[i].modelPath,
                                                    pinnParameters[i].threadNumber,
                                                    pinnParameters[i].threadNumber,
-                                                   pinnParameters[i].inputType))
+                                                   pinnParameters[i].modelPrefix))
             {
                 log()->error("{} Failed to initialize friction estimator", logPrefix);
                 return false;
