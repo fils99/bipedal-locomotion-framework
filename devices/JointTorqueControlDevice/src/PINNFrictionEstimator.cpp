@@ -184,6 +184,8 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
     m_pimpl->motorVelocityBuffer.push_back(inputMotorVelocity);
     m_pimpl->jointVelocityBuffer.push_back(inputJointVelocity);
     m_pimpl->motorTemperatureBuffer.push_back(inputMotorTemperature);
+    m_pimpl->motorPositionBuffer.push_back(inputMotorPosition);
+    m_pimpl->jointPositionBuffer.push_back(inputJointPosition);
 
     // Check if the buffer is full
     if (m_pimpl->motorVelocityBuffer.size() < m_pimpl->historyLength)
