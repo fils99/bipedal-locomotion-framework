@@ -304,3 +304,7 @@ framework_dependent_option(FRAMEWORK_COMPILE_JointsGridPositionTrackingApplicati
 framework_dependent_option(FRAMEWORK_COMPILE_MotorCurrentTrackingApplication
   "Compile motor-current-tracking application?" ON
   "FRAMEWORK_COMPILE_YarpImplementation;FRAMEWORK_COMPILE_PYTHON_BINDINGS;FRAMEWORK_COMPILE_RobotInterface" OFF)
+
+framework_dependent_option(FRAMEWORK_COMPILE_JointTorqueTrackingApplication
+  "Compile joint-torque-tracking application?" ON
+  "FRAMEWORK_COMPILE_YarpImplementation;FRAMEWORK_COMPILE_PYTHON_BINDINGS;FRAMEWORK_COMPILE_RobotInterface" OFF)
