@@ -31,7 +31,7 @@ BSD-3-Clause license. -->
   </group>
 
   <group name="ExogenousSignals">
-    <param name="vectors_collection_exogenous_inputs">("Walking", "CurrentControl")</param>
+    <param name="vectors_collection_exogenous_inputs">("Walking", "CurrentControl", "TorqueControlTracking")</param>
     <param name="vectors_exogenous_inputs">()</param>
     <param name="string_exogenous_inputs">()</param>
 
@@ -48,6 +48,14 @@ BSD-3-Clause license. -->
       <param name="signal_name">"current_control"</param>
       <param name="carrier">"udp"</param>
     </group>
+
+    <group name="TorqueControlTracking">
+      <param name="local">"/yarp-robot-logger/exogenous_signals/torque_control_trajectory"</param>
+      <param name="remote">"/joint_torque_tracking/logger"</param>
+      <param name="signal_name">"torque_control_tracking"</param>
+      <param name="carrier">"udp"</param>
+    </group>
+
   </group>
 
   <group name="RobotCameraBridge">
