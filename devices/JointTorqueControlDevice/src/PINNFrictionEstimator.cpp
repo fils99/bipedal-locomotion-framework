@@ -251,6 +251,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
         std::copy(m_pimpl->jointVelocityBuffer.cbegin(),
                 m_pimpl->jointVelocityBuffer.cend(),
                 m_pimpl->structuredInput.rawData.begin() + index);
+        index += m_pimpl->historyLength;
     }
     if (m_pimpl->inputType == 3 || m_pimpl->inputType == 4)
     {
