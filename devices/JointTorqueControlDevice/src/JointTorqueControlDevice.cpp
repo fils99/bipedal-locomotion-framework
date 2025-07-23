@@ -533,6 +533,8 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
                                                  measuredMotorPositions[joint] * M_PI / 180.0,
                                                  measuredJointPositions[joint] * M_PI / 180.0,
                                                  measuredMotorTemperatures[joint],
+                                                 m_gearRatios[joint],
+                                                 measuredMotorCurrents[joint],
                                                  measuredMotorTemperaturesNoOutliers[joint],
                                                  frictionTorque))
         {
@@ -660,6 +662,10 @@ void JointTorqueControlDevice::readStatus()
     if (!this->PassThroughControlBoard::getTemperatures(measuredMotorTemperatures.data()))
     {
         log()->error("{} Failed to get motor temperature", logPrefix);
+    }
+    if (!this->PassThroughControlBoard::getCurrents(measuredMotorCurrents.data()))
+    {
+        log()->error("{} Failed to get motor current", logPrefix);
     }
     if (m_estimateJointVelocity)
     {
@@ -1451,6 +1457,7 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         measuredMotorVelocities.resize(axes, 0.0);
         measuredMotorTemperatures.resize(axes, 0.0);
         measuredMotorTemperaturesNoOutliers.resize(axes, 0.0);
+        measuredMotorCurrents.resize(axes, 0.0);
         measuredJointTorques.resize(axes, 0.0);
         torqueIntegralErrors.resize(axes, 0.0);
         measuredJointPositions.resize(axes, 0.0);

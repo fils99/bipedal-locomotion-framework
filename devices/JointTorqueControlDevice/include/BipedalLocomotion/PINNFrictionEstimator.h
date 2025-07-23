@@ -54,6 +54,8 @@ public:
      * @param[in] inputMotorPosition a double representing the motor position (rad)
      * @param[in] inputJointPosition a double representing the joint position (rad)
      * @param[in] inputMotorTemperature a double representing the motor temperature (Celsius)
+     * @param[in] gearRatio a double representing the gear ratio of the motor
+     * @param[in] motorCurrent a double representing the motor current (A)
      * @param[out] adjustedMotorTemperature a double representing the adjusted motor temperature (Celsius) by removing outliers (useful for logging)
      * @param[out] output a double representing the joint friction torque
      * @return true if the estimation is successful, false otherwise
@@ -63,6 +65,8 @@ public:
                   double inputMotorPosition,
                   double inputJointPosition,
                   double inputMotorTemperature,
+                  double gearRatio,
+                  double motorCurrent,
                   double& adjustedMotorTemperature,
                   double& output);
 
