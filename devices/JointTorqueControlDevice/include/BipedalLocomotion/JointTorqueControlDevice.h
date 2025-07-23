@@ -184,6 +184,7 @@ private:
     yarp::sig::Vector measuredJointPositions;
     yarp::sig::Vector measuredMotorPositions;
     yarp::sig::Vector estimatedFrictionTorques;
+    yarp::sig::Vector estimatedFrictionTorquesNoScaling;
     yarp::sig::Vector torqueIntegralErrors;
     std::string m_portPrefix{"/hijackingTrqCrl"}; /**< Default port prefix. */
     BipedalLocomotion::YarpUtilities::VectorsCollectionServer m_vectorsCollectionServer; /**< Logger server. */
@@ -210,6 +211,7 @@ private:
     {
         std::mutex mutex;
         std::vector<double> m_frictionLogging;
+        std::vector<double> m_frictionNoScalingLogging;
         std::vector<double> m_currentLogging;
         std::vector<double> m_jointVelocitiesKFLogging;
         std::vector<double> m_motorVelocitiesKFLogging;

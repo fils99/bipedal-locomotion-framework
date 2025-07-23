@@ -555,6 +555,7 @@ void JointTorqueControlDevice::computeDesiredCurrents()
                                                 * yarp::eigen::toEigen(desiredJointTorques);
 
     estimatedFrictionTorques.zero();
+    estimatedFrictionTorquesNoScaling.zero();
 
     std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
 
@@ -562,11 +563,9 @@ void JointTorqueControlDevice::computeDesiredCurrents()
     {
         if (this->hijackingTorqueControl[j])
         {
-            if (motorTorqueCurrentParameters[j].kfc > 0.0)
-            {
-                estimatedFrictionTorques[j]
-                    = motorTorqueCurrentParameters[j].kfc * computeFrictionTorque(j);
-            }
+            estimatedFrictionTorquesNoScaling[j] = computeFrictionTorque(j);
+            estimatedFrictionTorques[j]
+                = motorTorqueCurrentParameters[j].kfc * estimatedFrictionTorquesNoScaling[j];
         }
     }
 
@@ -614,6 +613,7 @@ void JointTorqueControlDevice::computeDesiredCurrents()
                 {
                     std::lock_guard<std::mutex> lockOutput(m_status.mutex);
                     m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
+                    m_status.m_frictionNoScalingLogging[j] = estimatedFrictionTorquesNoScaling[j];
                     m_status.m_currentLogging[j] = desiredMotorCurrents[j];
                     m_status.m_jointVelocitiesKFLogging[j] = measuredJointVelocities[j] * M_PI / 180.0;
                     m_status.m_motorVelocitiesKFLogging[j] = measuredMotorVelocities[j] * M_PI / 180.0;
@@ -1230,6 +1230,7 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
         m_vectorsCollectionServer.populateMetadata("motor_currents::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("friction_torques::estimated_no_scaling", joint_list);
         m_vectorsCollectionServer.populateMetadata("joint_velocities::KF::estimated", joint_list);
         m_vectorsCollectionServer.populateMetadata("motor_velocities::KF::estimated", joint_list);
         m_vectorsCollectionServer.populateMetadata("motor_temperature::removed_outliers", joint_list);
@@ -1275,6 +1276,8 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_currentLogging);
             m_vectorsCollectionServer.populateData("friction_torques::estimated",
                                                    m_status.m_frictionLogging);
+            m_vectorsCollectionServer.populateData("friction_torques::estimated_no_scaling",
+                                                   m_status.m_frictionNoScalingLogging);
             m_vectorsCollectionServer.populateData("joint_velocities::KF::estimated",
                                                    m_status.m_jointVelocitiesKFLogging);
             m_vectorsCollectionServer.populateData("motor_velocities::KF::estimated",
@@ -1453,9 +1456,11 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         measuredJointPositions.resize(axes, 0.0);
         measuredMotorPositions.resize(axes, 0.0);
         estimatedFrictionTorques.resize(axes, 0.0);
+        estimatedFrictionTorquesNoScaling.resize(axes, 0.0);
         m_gearRatios.resize(axes, 1);
         m_axisNames.resize(axes);
         m_status.m_frictionLogging.resize(axes, 1);
+        m_status.m_frictionNoScalingLogging.resize(axes, 1);
         m_status.m_currentLogging.resize(axes, 1);
         m_status.m_jointVelocitiesKFLogging.resize(axes, 1);
         m_status.m_motorVelocitiesKFLogging.resize(axes, 1);
