@@ -180,6 +180,7 @@ private:
     yarp::sig::Vector measuredMotorVelocities;
     yarp::sig::Vector measuredMotorTemperatures;
     yarp::sig::Vector measuredMotorTemperaturesNoOutliers;
+    yarp::sig::Vector measuredMotorCurrents;
     yarp::sig::Vector measuredJointTorques;
     yarp::sig::Vector measuredJointPositions;
     yarp::sig::Vector measuredMotorPositions;
