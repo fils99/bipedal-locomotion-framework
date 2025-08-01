@@ -50,7 +50,8 @@ struct PINNFrictionEstimator::Impl
     };
 
     DataStructured structuredInput;
-    DataStructured structuredOutput;
+    DataStructured structuredContinuousOutput;
+    DataStructured structuredDiscreteOutput;
 
     Impl()
         : memoryInfo(::Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU))
@@ -157,21 +158,37 @@ bool PINNFrictionEstimator::initialize(const std::string& networkModelPath,
                                           m_pimpl->structuredInput.shape.data(),
                                           m_pimpl->structuredInput.shape.size());
 
-    // format the output
-    const std::size_t outputSize = 1;
+    // format the continuous output
+    const std::size_t continuousOutputSize = 1;
 
-    // resize the output
-    m_pimpl->structuredOutput.rawData.resize(outputSize);
-    m_pimpl->structuredOutput.shape[0] = 1; // batch
-    m_pimpl->structuredOutput.shape[1] = outputSize;
+    // resize the continuous output
+    m_pimpl->structuredContinuousOutput.rawData.resize(continuousOutputSize);
+    m_pimpl->structuredContinuousOutput.shape[0] = 1; // batch
+    m_pimpl->structuredContinuousOutput.shape[1] = continuousOutputSize;
 
     // create tensor required by onnx
-    m_pimpl->structuredOutput.tensor
+    m_pimpl->structuredContinuousOutput.tensor
         = Ort::Value::CreateTensor<float>(m_pimpl->memoryInfo,
-                                          m_pimpl->structuredOutput.rawData.data(),
-                                          m_pimpl->structuredOutput.rawData.size(),
-                                          m_pimpl->structuredOutput.shape.data(),
-                                          m_pimpl->structuredOutput.shape.size());
+                                          m_pimpl->structuredContinuousOutput.rawData.data(),
+                                          m_pimpl->structuredContinuousOutput.rawData.size(),
+                                          m_pimpl->structuredContinuousOutput.shape.data(),
+                                          m_pimpl->structuredContinuousOutput.shape.size());
+
+    // format the discrete output
+    const std::size_t discreteOutputSize = 3;
+
+    // resize the discrete output
+    m_pimpl->structuredDiscreteOutput.rawData.resize(discreteOutputSize);
+    m_pimpl->structuredDiscreteOutput.shape[0] = 1; // batch
+    m_pimpl->structuredDiscreteOutput.shape[1] = discreteOutputSize;
+
+    // create tensor required by onnx
+    m_pimpl->structuredDiscreteOutput.tensor
+        = Ort::Value::CreateTensor<float>(m_pimpl->memoryInfo,
+                                          m_pimpl->structuredDiscreteOutput.rawData.data(),
+                                          m_pimpl->structuredDiscreteOutput.rawData.size(),
+                                          m_pimpl->structuredDiscreteOutput.shape.data(),
+                                          m_pimpl->structuredDiscreteOutput.shape.size());
 
     return true;
 }
@@ -195,7 +212,8 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
                                      double gearRatio,
                                      double motorCurrent,
                                      double& adjustedMotorTemperature,
-                                     double& output)
+                                     double& continuousOutput,
+                                     std::array<double, 3>& discreteOutput)
 {
     if (m_pimpl->motorVelocityBuffer.size() == m_pimpl->historyLength)
     {
@@ -214,7 +232,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
 
     // Find the sign of the motor current
     // Define a threshold to determine the sign of the motor current
-    double motorCurrentThreshold = 0.01;
+    double motorCurrentThreshold = 0.1;
     int motorCurrentSign = 0; // 0: no current, 1: positive, -1: negative
 
     if (std::abs(motorCurrent) > motorCurrentThreshold) {
@@ -320,26 +338,73 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
     }
 
     // perform the inference
+
+    // Set thte input names
     const char* inputNames[] = {"input"};
-    const char* outputNames[] = {"output"};
 
-    try
-    {
-        m_pimpl->session->Run(Ort::RunOptions(),
-                            inputNames,
-                            &(m_pimpl->structuredInput.tensor),
-                            1,
-                            outputNames,
-                            &(m_pimpl->structuredOutput.tensor),
-                            1);
+    // the outputNames depends on the Neural Network model
+    // For example, if the model has a single output, the outputNames is just {"output"}
+    // If the model has two outputs, the outputNames is {"continuous_output", "discrete_output"}
+    std::size_t outputCount = {};
+    outputCount = m_pimpl->session->GetOutputCount();
 
-    } catch (const Ort::Exception& e) {
-        BipedalLocomotion::log()->error("Error during the inference: {}", e.what());
+    // Create the output tensors that contains both the continuous and discrete outputs
+    // This tensor will be usd only in the case where the model has two outputs
+    // If the model has a single output, we will use only the continuous output tensor
+    std::array<Ort::Value*, 2> outputTensors = {
+                &(m_pimpl->structuredContinuousOutput.tensor),
+                &(m_pimpl->structuredDiscreteOutput.tensor)};
+
+    if (outputCount == 1){
+        const char* outputNames [] = {"continuous_output"};
+        try
+        {
+            m_pimpl->session->Run(Ort::RunOptions(),
+                                inputNames,
+                                &(m_pimpl->structuredInput.tensor),
+                                1,
+                                outputNames,
+                                &(m_pimpl->structuredContinuousOutput.tensor),
+                                1);
+
+        // copy the output
+        continuousOutput = static_cast<double>(m_pimpl->structuredContinuousOutput.rawData[0]);
+        } catch (const Ort::Exception& e) {
+            BipedalLocomotion::log()->error("Error during the inference: {}", e.what());
+            return false;
+        }
+    }else if(outputCount == 2){
+        const char* outputNames[] = {"continuous_output", "discrete_output"};
+        try
+        {
+            // This time we use a different version of the Run method
+            // Otherwise the compiler raises an error
+            // because the outputTensors is not a vector of Ort::Value
+            auto output_tensors = m_pimpl->session->Run(Ort::RunOptions(),
+                                inputNames,
+                                &(m_pimpl->structuredInput.tensor),
+                                1,
+                                outputNames,
+                                // &(outputTensors),
+                                2);
+
+        // copy the continuous output
+        continuousOutput = static_cast<double>(output_tensors[0].GetTensorMutableData<float>()[0]);
+
+        // copy the discrete output
+        float* discrete_output = output_tensors[1].GetTensorMutableData<float>();
+        discreteOutput[0] = static_cast<double>(discrete_output[0]);
+        discreteOutput[1] = static_cast<double>(discrete_output[1]);
+        discreteOutput[2] = static_cast<double>(discrete_output[2]);
+
+    }catch (const Ort::Exception& e) {
+            BipedalLocomotion::log()->error("Error during the inference: {}", e.what());
+            return false;
+        }
+    }else{
+        BipedalLocomotion::log()->error("The model has an unexpected number of outputs: {}", outputCount);
         return false;
     }
-
-    // copy the output
-    output = static_cast<double>(m_pimpl->structuredOutput.rawData[0]);
 
     return true;
 }

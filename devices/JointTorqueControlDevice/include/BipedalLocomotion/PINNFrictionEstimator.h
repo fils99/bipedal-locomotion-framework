@@ -57,7 +57,8 @@ public:
      * @param[in] gearRatio a double representing the gear ratio of the motor
      * @param[in] motorCurrent a double representing the motor current (A)
      * @param[out] adjustedMotorTemperature a double representing the adjusted motor temperature (Celsius) by removing outliers (useful for logging)
-     * @param[out] output a double representing the joint friction torque
+     * @param[out] continuousOutput a double representing the continuous output of the model (friction torque)
+     * @param[out] discreteOutput an array of 3 doubles representing the discrete output of the model (logit vector)
      * @return true if the estimation is successful, false otherwise
      */
     bool estimate(double inputMotorVelocity,
@@ -68,7 +69,8 @@ public:
                   double gearRatio,
                   double motorCurrent,
                   double& adjustedMotorTemperature,
-                  double& output);
+                  double& continuousOutput,
+                  std::array<double, 3>& discreteOutput);
 
 
 private:

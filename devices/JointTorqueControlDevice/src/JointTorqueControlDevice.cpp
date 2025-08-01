@@ -499,6 +499,9 @@ bool JointTorqueControlDevice::isHijackingTorqueControl(int j)
 double JointTorqueControlDevice::computeFrictionTorque(int joint)
 {
     double frictionTorque = 0.0;
+    double continuousOutput = 0.0;
+    std::array<double, 3> discreteOutput = {0.0, 0.0, 0.0};
+    double discreteValues [] = {-motorTorqueCurrentParameters[joint].tauMaxStiction, 0.0, -motorTorqueCurrentParameters[joint].tauMaxStiction};
 
     if (motorTorqueCurrentParameters[joint].frictionModel == "FRICTION_COULOMB_VISCOUS")
     {
@@ -528,7 +531,7 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
     } else if (motorTorqueCurrentParameters[joint].frictionModel == "FRICTION_PINN")
     {
         // Test network with inputs position error motor side, joint velocity and motor temperature
-        if (!frictionEstimators[joint]->estimate(measuredMotorVelocities[joint] * M_PI / 180.0,
+        if (frictionEstimators[joint]->estimate(measuredMotorVelocities[joint] * M_PI / 180.0,
                                                  measuredJointVelocities[joint] * M_PI / 180.0,
                                                  measuredMotorPositions[joint] * M_PI / 180.0,
                                                  measuredJointPositions[joint] * M_PI / 180.0,
@@ -536,8 +539,22 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
                                                  m_gearRatios[joint],
                                                  measuredMotorCurrents[joint],
                                                  measuredMotorTemperaturesNoOutliers[joint],
-                                                 frictionTorque))
-        {
+                                                 continuousOutput,
+                                                 discreteOutput)){
+            // We need to check if the abs value of joint value is above the zero threshold
+            // If yes, we use the continuous output, otherwise we use the discrete output
+            // Please note that the discrete output is a logit vector, that represent the probability
+            // of the friction torque to be one of the three discrete values [-tauMaxStiction, 0, tauMaxStiction]
+            // In this case, we need to understand which is the highest logit, i.e. to find the index of the maximum value
+            if (std::abs(measuredJointVelocities[joint] * M_PI / 180.0) > motorTorqueCurrentParameters[joint].jointVelocityZeroThreshold){
+                frictionTorque = continuousOutput;
+            } else {
+                // Find the index of the maximum value in discreteOutput
+                auto maxIt = std::max_element(discreteOutput.begin(), discreteOutput.end());
+                int maxIndex = std::distance(discreteOutput.begin(), maxIt);
+                frictionTorque = discreteValues[maxIndex];
+            }
+        }else{
             frictionTorque = 0.0;
         }
     }
@@ -1137,6 +1154,20 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
     {
         log()->info("{} Parameter `joint_velocity_threshold` not found. The default value will be found.", logPrefix);
         jointVelThreshold.resize(kt.size(), 0.0);
+    }
+
+    std::vector<double> jointVelocityZeroThreshold;
+    if (!torqueGroup->getParameter("joint_velocity_zero_threshold", jointVelocityZeroThreshold))
+    {
+        log()->info("{} Parameter `joint_velocity_zero_threshold` not found.", logPrefix);
+        return false;
+    };
+
+    std::vector<double> tauMaxStiction;
+    if (!torqueGroup->getParameter("tau_max_stiction", tauMaxStiction))
+    {
+        log()->info("{} Parameter `tau_max_stiction` not found.", logPrefix);
+        return false;
     }
 
     motorTorqueCurrentParameters.resize(kt.size());

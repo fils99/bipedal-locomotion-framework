@@ -72,6 +72,8 @@ struct MotorTorqueCurrentParameters
     std::string frictionModel; ///< friction model
     double maxOutputFriction; /**< maximum output of the friction model */
     double jointVelThreshold{0.0}; /**< joint velocity saturation */
+    double jointVelocityZeroThreshold{0.0}; /**< joint velocity zero threshold */
+    double tauMaxStiction{0.0}; /**< maximum stiction torque */
 
     /**
      * Reset the parameters
