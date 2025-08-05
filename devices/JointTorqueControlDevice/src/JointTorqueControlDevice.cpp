@@ -501,7 +501,7 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
     double frictionTorque = 0.0;
     double continuousOutput = 0.0;
     std::array<double, 3> discreteOutput = {0.0, 0.0, 0.0};
-    double discreteValues [] = {-motorTorqueCurrentParameters[joint].tauMaxStiction, 0.0, -motorTorqueCurrentParameters[joint].tauMaxStiction};
+    double discreteValues [] = {-motorTorqueCurrentParameters[joint].tauMaxStiction, 0.0, motorTorqueCurrentParameters[joint].tauMaxStiction};
 
     if (motorTorqueCurrentParameters[joint].frictionModel == "FRICTION_COULOMB_VISCOUS")
     {
