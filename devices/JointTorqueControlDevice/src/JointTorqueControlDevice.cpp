@@ -1185,6 +1185,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         motorTorqueCurrentParameters[i].frictionModel = frictionModels[i];
         motorTorqueCurrentParameters[i].maxOutputFriction = maxOutputFriction[i];
         motorTorqueCurrentParameters[i].jointVelThreshold = jointVelThreshold[i];
+        motorTorqueCurrentParameters[i].jointVelocityZeroThreshold = jointVelocityZeroThreshold[i];
+        motorTorqueCurrentParameters[i].tauMaxStiction = tauMaxStiction[i];
     }
 
     auto filterParams = std::make_shared<ParametersHandler::YarpImplementation>();
