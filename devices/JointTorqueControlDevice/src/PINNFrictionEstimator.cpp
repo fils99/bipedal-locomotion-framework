@@ -356,7 +356,7 @@ bool PINNFrictionEstimator::estimate(double inputMotorVelocity,
                 &(m_pimpl->structuredDiscreteOutput.tensor)};
 
     if (outputCount == 1){
-        const char* outputNames [] = {"continuous_output"};
+        const char* outputNames [] = {"output"};
         try
         {
             m_pimpl->session->Run(Ort::RunOptions(),
