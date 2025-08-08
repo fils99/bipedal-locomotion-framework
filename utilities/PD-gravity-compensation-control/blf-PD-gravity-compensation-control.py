@@ -8,6 +8,7 @@ import signal
 import sys
 from abc import ABC, abstractmethod
 from typing import Callable, Type
+import threading
 
 import bipedal_locomotion_framework as blf
 import numpy as np
@@ -21,6 +22,76 @@ ParamHandler = Type[blf.parameters_handler.YarpParametersHandler]
 RobotControl = Type[blf.robot_interface.YarpRobotControl]
 SensorBridge = Type[blf.robot_interface.YarpSensorBridge]
 PolyDriver = Type[blf.robot_interface.PolyDriver]
+
+import threading
+
+# Global variables to be modified interactively
+interactive_params = {
+    "joint_position_desired": None,
+    "joint_velocity_desired": None,
+    "Kp": None,
+    "Kd": None
+}
+param_lock = threading.Lock()
+
+def interactive_param_updater(joints_to_control): # TODO: use blf.info instead of print
+    """
+    Thread for interactive tuning using joint names.
+    Commands:
+      set pos <joint_name> <deg>
+      set vel <joint_name> <deg/s>
+      set kp  <joint_name> <Nm /deg>
+      set kd  <joint_name> <Nm / (deg/s)>
+      show
+    """
+    while True:
+        try:
+            cmd = input().strip().split()
+            if not cmd:
+                continue
+
+            with param_lock:
+                if cmd[0].lower() == "set" and len(cmd) == 3 + 1:  # set <type> <joint> <value>
+                    param_type = cmd[1].lower()
+                    joint_name = cmd[2]
+                    value = float(cmd[3])
+
+                    if joint_name not in joints_to_control:
+                        blf.log().info(
+                            f"[WARN] Joint '{joint_name}' is not in the list of controlled joints: {joints_to_control}"
+                        )
+                        continue
+
+                    if param_type == "pos":
+                        interactive_params["joint_position_desired"][joint_name] = np.deg2rad(value)
+                    elif param_type == "vel":
+                        interactive_params["joint_velocity_desired"][joint_name] = np.deg2rad(value)
+                    elif param_type == "kp":
+                        interactive_params["Kp"][joint_name] = value
+                    elif param_type == "kd":
+                        interactive_params["Kd"][joint_name] = value
+                    else:
+                        blf.log().info(
+                            f"[WARN] Unknown parameter type '{param_type}'. Use 'pos', 'vel', 'kp', or 'kd'."
+                        )
+                
+                elif cmd[0].lower() == "show":
+                    blf.log().info("[INFO] Current parameters:")
+                    for j in joints_to_control:
+                        print(
+                            f"{j}: pos={np.rad2deg(interactive_params['joint_position_desired'][j]):.2f} deg, "
+                            f"vel={np.rad2deg(interactive_params['joint_velocity_desired'][j]):.2f} deg/s, "
+                            f"Kp={interactive_params['Kp'][j]:.2f}, "
+                            f"Kd={interactive_params['Kd'][j]:.2f}"
+                        )
+                else:
+                    blf.log().info(
+                        "[WARN] Invalid command. Use 'set <type> <joint> <value>' or 'show'."
+                    )
+
+        except Exception as e:
+            blf.log().error(f"[ERROR] Exception in interactive parameter updater: {e}")
+            blf.log().info("[INFO] Use 'show' to see current parameters or 'set' to modify them.")
 
 class MotorParameters(ABC):
     # k_tau[A/Nm] includes the gear ratio
@@ -192,6 +263,29 @@ def main():
                     logPrefix, joint
                 )
             )
+    
+    # Store initial parameters in dicts keyed by joint name
+    with param_lock:
+        interactive_params["joint_position_desired"] = dict(zip(
+            joints_to_control, joint_position_desired
+        ))
+        interactive_params["joint_velocity_desired"] = dict(zip(
+            joints_to_control, joint_velocity_desired
+        ))
+        interactive_params["Kp"] = dict(zip(
+            joints_to_control, Kp
+        ))
+        interactive_params["Kd"] = dict(zip(
+            joints_to_control, Kd
+        ))
+
+    # Start input thread
+    input_thread = threading.Thread(
+        target=interactive_param_updater,
+        args=(joints_to_control,),
+        daemon=True
+    )
+    input_thread.start()
     
     # Load compensation factors for bias forces (allows scaling gravity compensation)
     compensation_bias_forces_factor = param_handler.get_parameter_vector_float(
@@ -427,6 +521,13 @@ def main():
                             logPrefix, joint, joint_position_desired[joint_idx]
                         )
                     )
+                
+                # Update parameters from interactive input
+                with param_lock:
+                    joint_position_desired = np.array([interactive_params["joint_position_desired"][j] for j in joints_to_control])
+                    joint_velocity_desired = np.array([interactive_params["joint_velocity_desired"][j] for j in joints_to_control])
+                    Kp = np.array([interactive_params["Kp"][j] for j in joints_to_control])
+                    Kd = np.array([interactive_params["Kd"][j] for j in joints_to_control])
                     
                 # ========== PD CONTROL COMPUTATION ==========
                 # Compute position error (desired - actual)
