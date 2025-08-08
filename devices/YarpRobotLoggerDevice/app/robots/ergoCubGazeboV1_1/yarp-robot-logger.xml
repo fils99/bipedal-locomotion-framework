@@ -60,6 +60,7 @@ BSD-3-Clause license. -->
       <param name="remote">"/PD_gravity_compensation_control/logger"</param>
       <param name="signal_name">"pd_gravity_compensation_control"</param>
       <param name="carrier">"udp"</param>
+    </group>
 
   </group>
 
