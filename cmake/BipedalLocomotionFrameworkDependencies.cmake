@@ -308,3 +308,7 @@ framework_dependent_option(FRAMEWORK_COMPILE_MotorCurrentTrackingApplication
 framework_dependent_option(FRAMEWORK_COMPILE_JointTorqueTrackingApplication
   "Compile joint-torque-tracking application?" ON
   "FRAMEWORK_COMPILE_YarpImplementation;FRAMEWORK_COMPILE_PYTHON_BINDINGS;FRAMEWORK_COMPILE_RobotInterface" OFF)
+
+framework_dependent_option(FRAMEWORK_COMPILE_PDGravityCompensationControlApplication
+  "Compile PD-gravity-compensation-control application?" ON
+  "FRAMEWORK_COMPILE_YarpImplementation;FRAMEWORK_COMPILE_PYTHON_BINDINGS;FRAMEWORK_COMPILE_RobotInterface" OFF)
