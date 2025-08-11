@@ -417,6 +417,22 @@ def main():
         joints_to_control,
     )
     vectors_collection_server.populate_metadata(
+        "joints::desired::position",
+        joints_to_control,
+    )
+    vectors_collection_server.populate_metadata(
+        "joints::desired::velocity",
+        joints_to_control,
+    )
+    vectors_collection_server.populate_metadata(
+        "joints::gains::Kp",
+        joints_to_control,
+    )
+    vectors_collection_server.populate_metadata(
+        "joints::gains::Kd",
+        joints_to_control,
+    )
+    vectors_collection_server.populate_metadata(
         "joints::control_mode::torque",
         joints_to_control,
     )
@@ -590,6 +606,18 @@ def main():
                 raise RuntimeError("{} Unable to clear the data".format(logPrefix))
             vectors_collection_server.populate_data(
                 "joints::desired::torque", np.array(joint_torque_reference)
+            )
+            vectors_collection_server.populate_data(
+                "joints::desired::position", np.array(joint_position_desired)
+            )
+            vectors_collection_server.populate_data(
+                "joints::desired::velocity", np.array(joint_velocity_desired)
+            )
+            vectors_collection_server.populate_data(
+                "joints::gains::Kp", np.array(Kp)
+            )
+            vectors_collection_server.populate_data(
+                "joints::gains::Kd", np.array(Kd)
             )
             vectors_collection_server.populate_data(
                 "joints::control_mode::torque", np.where(is_out_of_safety_limits, 0, 1)
