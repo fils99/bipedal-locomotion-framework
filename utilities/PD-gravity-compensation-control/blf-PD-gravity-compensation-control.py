@@ -44,9 +44,6 @@ class PDControlRPCService:
         self.param_lock = param_lock
         self.log_prefix = log_prefix
 
-        # Initialize YARP network
-        yarp.Network.init()
-
         # Create RPC server port
         self.rpc_port = yarp.Port()
         self.port_name = "/PD_gravity_compensation_control/commands"
@@ -54,7 +51,6 @@ class PDControlRPCService:
         # Open the port
         if not self.rpc_port.open(self.port_name):
             raise RuntimeError(f"{self.log_prefix} Failed to open RPC port {self.port_name}")
-
 
         blf.log().info(f"{self.log_prefix} RPC server started on port {self.port_name}")
         blf.log().info(f"{self.log_prefix} Connect with: yarp rpc {self.port_name}")
@@ -742,7 +738,6 @@ def main():
         raise RuntimeError("{} Unable to set the control mode".format(logPrefix))
 
     # ========== MAIN CONTROL LOOP ==========
-    ROTTO = False
     try:
         while True:
             # Record start time for timing control
@@ -771,6 +766,13 @@ def main():
                 raise RuntimeError("{} Unable to compute the bias forces".format(logPrefix))
             # Extract joint torques from generalized bias forces
             generalizedBiasForcesVector = generalizedBiasForcesVector_idyn.jointTorques().toNumPy()
+
+            # Update parameters from interactive input
+            with param_lock:
+                joint_position_desired = np.array([interactive_params["joint_position_desired"][j] for j in joints_to_control])
+                joint_velocity_desired = np.array([interactive_params["joint_velocity_desired"][j] for j in joints_to_control])
+                Kp = np.array([interactive_params["Kp"][j] for j in joints_to_control])
+                Kd = np.array([interactive_params["Kd"][j] for j in joints_to_control])
 
             # ========== SAFETY CHECK AND CONTROL COMPUTATION ==========
             for joint_idx, joint_name in enumerate(joints_to_control):
@@ -801,13 +803,6 @@ def main():
                             logPrefix, joint, joint_position_desired[joint_idx]
                         )
                     )
-
-                # Update parameters from interactive input
-                with param_lock:
-                    joint_position_desired = np.array([interactive_params["joint_position_desired"][j] for j in joints_to_control])
-                    joint_velocity_desired = np.array([interactive_params["joint_velocity_desired"][j] for j in joints_to_control])
-                    Kp = np.array([interactive_params["Kp"][j] for j in joints_to_control])
-                    Kd = np.array([interactive_params["Kd"][j] for j in joints_to_control])
 
                 # ========== PD CONTROL COMPUTATION ==========
                 # Compute position error (desired - actual)
@@ -904,26 +899,6 @@ def main():
     except Exception as e:
         blf.log().error(f"{logPrefix} Exception occurred: {e}")
         ctrl_c_handler(None, None)  # Safe exit
-
-    # # get the feedback
-    # if not sensor_bridge.advance():
-    #     raise RuntimeError("{} Unable to advance the sensor bridge".format(logPrefix))
-
-    # are_joints_ok, joint_positions, _ = sensor_bridge.get_joint_positions()
-
-    # if not are_joints_ok:
-    #     raise RuntimeError("{} Unable to get the joint positions".format(logPrefix))
-
-    # # set the control mode to position
-    # if not robot_control.set_control_mode(
-    #     blf.robot_interface.YarpRobotControl.Position
-    # ):
-    #     raise RuntimeError("{} Unable to set the control mode".format(logPrefix))
-    # if not robot_control.set_references(
-    #     joint_positions, blf.robot_interface.YarpRobotControl.Position
-    # ):
-    #     raise RuntimeError("{} Unable to set the references".format(logPrefix))
-
 
 if __name__ == "__main__":
     network = yarp.Network()
