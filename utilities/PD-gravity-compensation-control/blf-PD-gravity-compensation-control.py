@@ -23,8 +23,6 @@ RobotControl = Type[blf.robot_interface.YarpRobotControl]
 SensorBridge = Type[blf.robot_interface.YarpSensorBridge]
 PolyDriver = Type[blf.robot_interface.PolyDriver]
 
-import threading
-
 # Global variables to be modified interactively
 interactive_params = {
     "joint_position_desired": None,
@@ -34,64 +32,330 @@ interactive_params = {
 }
 param_lock = threading.Lock()
 
-def interactive_param_updater(joints_to_control): # TODO: use blf.info instead of print
+class PDControlRPCService:
     """
-    Thread for interactive tuning using joint names.
-    Commands:
-      set pos <joint_name> <deg>
-      set vel <joint_name> <deg/s>
-      set kp  <joint_name> <Nm /deg>
-      set kd  <joint_name> <Nm / (deg/s)>
-      show
+    RPC service for interacting with PD controller parameters.
+    This replaces the interactive_param_updater function with a proper RPC interface.
     """
-    while True:
+
+    def __init__(self, joints_to_control, interactive_params, param_lock, log_prefix="[PD-RPC-Service]"):
+        self.joints_to_control = joints_to_control
+        self.interactive_params = interactive_params
+        self.param_lock = param_lock
+        self.log_prefix = log_prefix
+
+        # Initialize YARP network
+        yarp.Network.init()
+
+        # Create RPC server port
+        self.rpc_port = yarp.Port()
+        self.port_name = "/PD_gravity_compensation_control/commands"
+
+        # Open the port
+        if not self.rpc_port.open(self.port_name):
+            raise RuntimeError(f"{self.log_prefix} Failed to open RPC port {self.port_name}")
+
+
+        blf.log().info(f"{self.log_prefix} RPC server started on port {self.port_name}")
+        blf.log().info(f"{self.log_prefix} Connect with: yarp rpc {self.port_name}")
+
+        # Start the RPC service thread
+        self.rpc_thread = threading.Thread(target=self._rpc_loop, daemon=True)
+        self.rpc_thread.start()
+
+    def _rpc_loop(self):
+        """Main RPC processing loop"""
+        while True:
+            # Create bottle for incoming command
+            cmd = yarp.Bottle()
+            reply = yarp.Bottle()
+
+            # Wait for incoming command
+            self.rpc_port.read(cmd, True)  # True means wait for message
+
+            # Process the command
+            self._process_command(cmd, reply)
+
+            # Send reply
+            self.rpc_port.reply(reply)
+
+    def _process_command(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Process incoming RPC commands"""
         try:
-            cmd = input().strip().split()
-            if not cmd:
-                continue
+            if cmd.size() == 0:
+                reply.addString("error")
+                reply.addString("Empty command")
+                return
 
-            with param_lock:
-                if cmd[0].lower() == "set" and len(cmd) == 3 + 1:  # set <type> <joint> <value>
-                    param_type = cmd[1].lower()
-                    joint_name = cmd[2]
-                    value = float(cmd[3])
+            command = cmd.get(0).asString()#.lower()
 
-                    if joint_name not in joints_to_control:
-                        blf.log().info(
-                            f"[WARN] Joint '{joint_name}' is not in the list of controlled joints: {joints_to_control}"
-                        )
-                        continue
-
-                    if param_type == "pos":
-                        interactive_params["joint_position_desired"][joint_name] = np.deg2rad(value)
-                    elif param_type == "vel":
-                        interactive_params["joint_velocity_desired"][joint_name] = np.deg2rad(value)
-                    elif param_type == "kp":
-                        interactive_params["Kp"][joint_name] = value
-                    elif param_type == "kd":
-                        interactive_params["Kd"][joint_name] = value
-                    else:
-                        blf.log().info(
-                            f"[WARN] Unknown parameter type '{param_type}'. Use 'pos', 'vel', 'kp', or 'kd'."
-                        )
-                
-                elif cmd[0].lower() == "show":
-                    blf.log().info("[INFO] Current parameters:")
-                    for j in joints_to_control:
-                        print(
-                            f"{j}: pos={np.rad2deg(interactive_params['joint_position_desired'][j]):.2f} deg, "
-                            f"vel={np.rad2deg(interactive_params['joint_velocity_desired'][j]):.2f} deg/s, "
-                            f"Kp={interactive_params['Kp'][j]:.2f}, "
-                            f"Kd={interactive_params['Kd'][j]:.2f}"
-                        )
-                else:
-                    blf.log().info(
-                        "[WARN] Invalid command. Use 'set <type> <joint> <value>' or 'show'."
-                    )
+            if command == "help":
+                self._handle_help(reply)
+            elif command == "setKp":
+                self._handle_set_kp(cmd, reply)
+            elif command == "getKp":
+                self._handle_get_kp(cmd, reply)
+            elif command == "setKd":
+                self._handle_set_kd(cmd, reply)
+            elif command == "getKd":
+                self._handle_get_kd(cmd, reply)
+            elif command == "setPos":
+                self._handle_set_position(cmd, reply)
+            elif command == "getPos":
+                self._handle_get_position(cmd, reply)
+            elif command == "setVel":
+                self._handle_set_velocity(cmd, reply)
+            elif command == "getVel":
+                self._handle_get_velocity(cmd, reply)
+            elif command == "show" or command == "status":
+                self._handle_show_all(reply)
+            elif command == "listJoints":
+                self._handle_list_joints(reply)
+            else:
+                reply.addString("error")
+                reply.addString(f"Unknown command: {command}")
 
         except Exception as e:
-            blf.log().error(f"[ERROR] Exception in interactive parameter updater: {e}")
-            blf.log().info("[INFO] Use 'show' to see current parameters or 'set' to modify them.")
+            reply.addString("error")
+            reply.addString(f"Exception processing command: {str(e)}")
+
+    def _handle_help(self, reply: yarp.Bottle):
+        """Handle help command"""
+        help_text = [
+            "Available commands:",
+            "  help - Show this help",
+            "  setKp <joint_name> <value> - Set proportional gain (Nm/deg)",
+            "  getKp <joint_name> - Get proportional gain",
+            "  setKd <joint_name> <value> - Set derivative gain (Nm/(deg/s))",
+            "  getKd <joint_name> - Get derivative gain",
+            "  setPos <joint_name> <value_deg> - Set desired position (degrees)",
+            "  getPos <joint_name> - Get desired position",
+            "  setVel <joint_name> <value_deg_s> - Set desired velocity (deg/s)",
+            "  getVel <joint_name> - Get desired velocity",
+            "  show - Show all parameters for all joints",
+            "  listJoints - List all controllable joints"
+        ]
+
+        reply.addString("ok")
+        for line in help_text:
+            reply.addString(line)
+
+    def _handle_set_kp(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle setKp command"""
+        if cmd.size() != 3:
+            reply.addString("error")
+            reply.addString("Usage: setKp <joint_name> <value>")
+            return
+
+        joint_name = cmd.get(1).asString()
+        try:
+            value = cmd.get(2).asFloat64()
+        except:
+            reply.addString("error")
+            reply.addString("Invalid value format")
+            return
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            self.interactive_params["Kp"][joint_name] = value
+
+        reply.addString("ok")
+        reply.addString(f"Set Kp for {joint_name} to {value}")
+
+    def _handle_get_kp(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle getKp command"""
+        if cmd.size() != 2:
+            reply.addString("error")
+            reply.addString("Usage: getKp <joint_name>")
+            return
+
+        joint_name = cmd.get(1).asString()
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            value = self.interactive_params["Kp"][joint_name]
+
+        reply.addString("ok")
+        reply.addFloat64(value)
+
+    def _handle_set_kd(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle setKd command"""
+        if cmd.size() != 3:
+            reply.addString("error")
+            reply.addString("Usage: setKd <joint_name> <value>")
+            return
+
+        joint_name = cmd.get(1).asString()
+        try:
+            value = cmd.get(2).asFloat64()
+        except:
+            reply.addString("error")
+            reply.addString("Invalid value format")
+            return
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            self.interactive_params["Kd"][joint_name] = value
+
+        reply.addString("ok")
+        reply.addString(f"Set Kd for {joint_name} to {value}")
+
+    def _handle_get_kd(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle getKd command"""
+        if cmd.size() != 2:
+            reply.addString("error")
+            reply.addString("Usage: getKd <joint_name>")
+            return
+
+        joint_name = cmd.get(1).asString()
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            value = self.interactive_params["Kd"][joint_name]
+
+        reply.addString("ok")
+        reply.addFloat64(value)
+
+    def _handle_set_position(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle setPos command"""
+        if cmd.size() != 3:
+            reply.addString("error")
+            reply.addString("Usage: setPos <joint_name> <value_deg>")
+            return
+
+        joint_name = cmd.get(1).asString()
+        try:
+            value_deg = cmd.get(2).asFloat64()
+            value_rad = np.deg2rad(value_deg)
+        except:
+            reply.addString("error")
+            reply.addString("Invalid value format")
+            return
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            self.interactive_params["joint_position_desired"][joint_name] = value_rad
+
+        reply.addString("ok")
+        reply.addString(f"Set desired position for {joint_name} to {value_deg} deg")
+
+    def _handle_get_position(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle getPos command"""
+        if cmd.size() != 2:
+            reply.addString("error")
+            reply.addString("Usage: getPos <joint_name>")
+            return
+
+        joint_name = cmd.get(1).asString()
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            value_rad = self.interactive_params["joint_position_desired"][joint_name]
+
+        value_deg = np.rad2deg(value_rad)
+        reply.addString("ok")
+        reply.addFloat64(value_deg)
+
+    def _handle_set_velocity(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle setVel command"""
+        if cmd.size() != 3:
+            reply.addString("error")
+            reply.addString("Usage: setVel <joint_name> <value_deg_s>")
+            return
+
+        joint_name = cmd.get(1).asString()
+        try:
+            value_deg_s = cmd.get(2).asFloat64()
+            value_rad_s = np.deg2rad(value_deg_s)
+        except:
+            reply.addString("error")
+            reply.addString("Invalid value format")
+            return
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            self.interactive_params["joint_velocity_desired"][joint_name] = value_rad_s
+
+        reply.addString("ok")
+        reply.addString(f"Set desired velocity for {joint_name} to {value_deg_s} deg/s")
+
+    def _handle_get_velocity(self, cmd: yarp.Bottle, reply: yarp.Bottle):
+        """Handle getVel command"""
+        if cmd.size() != 2:
+            reply.addString("error")
+            reply.addString("Usage: getVel <joint_name>")
+            return
+
+        joint_name = cmd.get(1).asString()
+
+        if joint_name not in self.joints_to_control:
+            reply.addString("error")
+            reply.addString(f"Joint '{joint_name}' not in controlled joints")
+            return
+
+        with self.param_lock:
+            value_rad_s = self.interactive_params["joint_velocity_desired"][joint_name]
+
+        value_deg_s = np.rad2deg(value_rad_s)
+        reply.addString("ok")
+        reply.addFloat64(value_deg_s)
+
+    def _handle_show_all(self, reply: yarp.Bottle):
+        """Handle show command - display all parameters"""
+        reply.addString("ok")
+        reply.addString("Current parameters:")
+
+        with self.param_lock:
+            for joint in self.joints_to_control:
+                pos_deg = np.rad2deg(self.interactive_params["joint_position_desired"][joint])
+                vel_deg = np.rad2deg(self.interactive_params["joint_velocity_desired"][joint])
+                kp = self.interactive_params["Kp"][joint]
+                kd = self.interactive_params["Kd"][joint]
+
+                param_str = (f"{joint}: pos={pos_deg:.2f}°, vel={vel_deg:.2f}°/s, "
+                           f"Kp={kp:.2f}, Kd={kd:.2f}")
+                reply.addString(param_str)
+
+    def _handle_list_joints(self, reply: yarp.Bottle):
+        """Handle listJoints command"""
+        reply.addString("ok")
+        reply.addString("Controllable joints:")
+        for joint in self.joints_to_control:
+            reply.addString(joint)
+
+    def close(self):
+        """Clean up resources"""
+        if hasattr(self, 'rpc_port'):
+            self.rpc_port.close()
+        yarp.Network.fini()
 
 class MotorParameters(ABC):
     # k_tau[A/Nm] includes the gear ratio
@@ -217,7 +481,7 @@ def compute_bias_forces(
     # Finally, we can compute the generalized bias forces
     if (not dynComp.generalizedBiasForces(generalizedBiasForcesVector)):
         raise RuntimeError("Could not compute generalized bias forces")
-    
+
     return True
 
 def main():
@@ -263,7 +527,7 @@ def main():
                     logPrefix, joint
                 )
             )
-    
+
     # Store initial parameters in dicts keyed by joint name
     with param_lock:
         interactive_params["joint_position_desired"] = dict(zip(
@@ -279,14 +543,14 @@ def main():
             joints_to_control, Kd
         ))
 
-    # Start input thread
-    input_thread = threading.Thread(
-        target=interactive_param_updater,
-        args=(joints_to_control,),
-        daemon=True
+    # Replace the input thread with RPC service
+    rpc_service = PDControlRPCService(
+        joints_to_control=joints_to_control,
+        interactive_params=interactive_params,
+        param_lock=param_lock,
+        log_prefix=logPrefix
     )
-    input_thread.start()
-    
+
     # Load compensation factors for bias forces (allows scaling gravity compensation)
     compensation_bias_forces_factor = param_handler.get_parameter_vector_float(
         "compensation_bias_forces_factor"
@@ -386,7 +650,7 @@ def main():
     are_joints_ok, joint_positions, _ = sensor_bridge.get_joint_positions()
     if not are_joints_ok:
         raise RuntimeError("{} Unable to get the joint positions".format(logPrefix))
-    
+
     are_joints_ok, joint_velocities, _ = sensor_bridge.get_joint_velocities()
     if not are_joints_ok:
         raise RuntimeError("{} Unable to get the joint velocities".format(logPrefix))
@@ -401,7 +665,7 @@ def main():
     if (not mdlLoader.loadReducedModelFromFile(URDF_FILE, joints_to_control)):
         raise RuntimeError("Could not load model from file: " + URDF_FILE)
     dynComp.loadRobotModel(mdlLoader.model())
-    
+
     # ========== DATA LOGGING SETUP ==========
     # Create server for logging control data
     vectors_collection_server = blf.yarp_utilities.VectorsCollectionServer()
@@ -460,7 +724,7 @@ def main():
     blf.log().info("{} Start".format(logPrefix))
 
     # Initialize iDynTree vector for storing computed bias forces
-    generalizedBiasForcesVector_idyn = iDynTree.FreeFloatingGeneralizedTorques(mdlLoader.model())  
+    generalizedBiasForcesVector_idyn = iDynTree.FreeFloatingGeneralizedTorques(mdlLoader.model())
 
     # Initialize error vectors for PD control
     position_error = np.zeros(len(joints_to_control))
@@ -500,14 +764,14 @@ def main():
             are_joints_ok, joint_velocities, _ = sensor_bridge.get_joint_velocities()
             if not are_joints_ok:
                 raise RuntimeError("{} Unable to get the joint velocities".format(logPrefix))
-            
+
             # ========== GRAVITY COMPENSATION COMPUTATION ==========
             # Compute bias forces (gravity + Coriolis + centrifugal forces)
             if not compute_bias_forces(dynComp, sensor_bridge, generalizedBiasForcesVector_idyn):
                 raise RuntimeError("{} Unable to compute the bias forces".format(logPrefix))
             # Extract joint torques from generalized bias forces
             generalizedBiasForcesVector = generalizedBiasForcesVector_idyn.jointTorques().toNumPy()
-            
+
             # ========== SAFETY CHECK AND CONTROL COMPUTATION ==========
             for joint_idx, joint_name in enumerate(joints_to_control):
                 # Check if the joint is within the safety limits
@@ -537,14 +801,14 @@ def main():
                             logPrefix, joint, joint_position_desired[joint_idx]
                         )
                     )
-                
+
                 # Update parameters from interactive input
                 with param_lock:
                     joint_position_desired = np.array([interactive_params["joint_position_desired"][j] for j in joints_to_control])
                     joint_velocity_desired = np.array([interactive_params["joint_velocity_desired"][j] for j in joints_to_control])
                     Kp = np.array([interactive_params["Kp"][j] for j in joints_to_control])
                     Kd = np.array([interactive_params["Kd"][j] for j in joints_to_control])
-                    
+
                 # ========== PD CONTROL COMPUTATION ==========
                 # Compute position error (desired - actual)
                 position_error[joint_idx] = joint_position_desired[joint_idx] - joint_positions[joint_idx]
@@ -636,11 +900,11 @@ def main():
                         logPrefix
                     )
                 )
-        
+
     except Exception as e:
         blf.log().error(f"{logPrefix} Exception occurred: {e}")
         ctrl_c_handler(None, None)  # Safe exit
-    
+
     # # get the feedback
     # if not sensor_bridge.advance():
     #     raise RuntimeError("{} Unable to advance the sensor bridge".format(logPrefix))
