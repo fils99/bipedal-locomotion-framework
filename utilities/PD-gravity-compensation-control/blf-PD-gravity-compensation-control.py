@@ -351,7 +351,6 @@ class PDControlRPCService:
         """Clean up resources"""
         if hasattr(self, 'rpc_port'):
             self.rpc_port.close()
-        yarp.Network.fini()
 
 class MotorParameters(ABC):
     # k_tau[A/Nm] includes the gear ratio
