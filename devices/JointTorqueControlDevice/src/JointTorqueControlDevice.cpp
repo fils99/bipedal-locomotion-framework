@@ -546,16 +546,20 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
             // Please note that the discrete output is a logit vector, that represent the probability
             // of the friction torque to be one of the three discrete values [-tauMaxStiction, 0, tauMaxStiction]
             // In this case, we need to understand which is the highest logit, i.e. to find the index of the maximum value
-            if (std::abs(measuredJointVelocities[joint] * M_PI / 180.0) > motorTorqueCurrentParameters[joint].jointVelocityZeroThreshold){
-                frictionTorque = continuousOutput;
+            if (pinnParameters[joint].multipleOutputPINN){
+                if (std::abs(measuredJointVelocities[joint] * M_PI / 180.0) > motorTorqueCurrentParameters[joint].jointVelocityZeroThreshold){
+                    frictionTorque = continuousOutput;
+                } else {
+                    // Find the index of the maximum value in discreteOutput
+                    auto maxIt = std::max_element(discreteOutput.begin(), discreteOutput.end());
+                    int maxIndex = std::distance(discreteOutput.begin(), maxIt);
+                    frictionTorque = discreteValues[maxIndex];
+                }
             } else {
-                // Find the index of the maximum value in discreteOutput
-                auto maxIt = std::max_element(discreteOutput.begin(), discreteOutput.end());
-                int maxIndex = std::distance(discreteOutput.begin(), maxIt);
-                frictionTorque = discreteValues[maxIndex];
+                frictionTorque = continuousOutput;
             }
         }else{
-            frictionTorque = 0.0;
+                frictionTorque = 0.0;
         }
     }
 
@@ -978,11 +982,18 @@ bool JointTorqueControlDevice::loadFrictionParams(
             log()->error("{} Parameter `thread_number` not found", logPrefix);
             return false;
         }
+        std::vector<bool> multipleOutputPINN;
+        if (!frictionGroup->getParameter("multiple_output_PINN", multipleOutputPINN))
+        {
+            log()->error("{} Parameter `multiple_output_PINN` not found", logPrefix);
+            return false;
+        }
 
         for (int i = 0; i < models.size(); i++) {
             std::string modelFilePath{rf.findFileByName(models[i])};
             pinnParameters[i].modelPath = modelFilePath;
             pinnParameters[i].threadNumber = threads;
+            pinnParameters[i].multipleOutputPINN = multipleOutputPINN[i];
 
             // Check if the file ends with .onnx
             if (modelFilePath.size() >= 5 &&

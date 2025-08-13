@@ -95,6 +95,7 @@ struct PINNParameters
     std::string modelPath; /**< PINN model path */
     int threadNumber; /**< number of threads */
     int modelPrefix; /**< type of input */
+    bool multipleOutputPINN; /**< true if the model has multiple outputs */
 
     /**
      * Reset the parameters
