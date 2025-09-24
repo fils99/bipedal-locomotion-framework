@@ -297,6 +297,52 @@ double JointTorqueControlDevice::getMaxFrictionTorque(const std::string& jointNa
     return -1;
 }
 
+bool JointTorqueControlDevice::setMaxCurrentResidual(const std::string& jointName, const double maxCurrentResidual)
+{
+    // Use std::find to locate the jointName in m_axisNames
+    auto it = std::find(m_axisNames.begin(), m_axisNames.end(), jointName);
+
+    // If jointName is found
+    if (it != m_axisNames.end())
+    {
+        // Calculate the index of the found element
+        size_t index = std::distance(m_axisNames.begin(), it);
+
+        // Lock the mutex to safely modify motorTorqueCurrentParameters
+        std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+        // Update the maxOutputCurrentResidual value
+        motorTorqueCurrentParameters[index].maxOutputCurrentResidual = maxCurrentResidual;
+
+        return true;
+    }
+
+    // jointName was not found
+    return false;
+}
+
+double JointTorqueControlDevice::getMaxCurrentResidual(const std::string& jointName)
+{
+    // Use std::find to locate the jointName in m_axisNames
+    auto it = std::find(m_axisNames.begin(), m_axisNames.end(), jointName);
+
+    // If jointName is found
+    if (it != m_axisNames.end())
+    {
+        // Calculate the index of the found element
+        size_t index = std::distance(m_axisNames.begin(), it);
+
+        // Lock the mutex to safely access motorTorqueCurrentParameters
+        std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+        // Return the maxOutputCurrentResidual value
+        return motorTorqueCurrentParameters[index].maxOutputCurrentResidual;
+    }
+
+    // jointName was not found, return default value
+    return -1;
+}
+
 bool JointTorqueControlDevice::setFrictionModel(const std::string& jointName,
                                                 const std::string& model)
 {
@@ -394,6 +440,58 @@ std::string JointTorqueControlDevice::getPINNModel(const std::string& jointName)
     } while (index < m_axisNames.size());
 
     return pinnModelName;
+}
+
+bool JointTorqueControlDevice::setNNModel(const std::string& jointName,
+                                            const std::string& nnModelName)
+{
+    auto it = std::find(m_axisNames.begin(), m_axisNames.end(), jointName);
+
+    // If jointName is found
+    if (it != m_axisNames.end())
+    {
+        // Calculate the index of the found element
+        size_t index = std::distance(m_axisNames.begin(), it);
+
+        nnParameters[index].modelPath = nnModelName;
+
+        // Lock the mutex to safely modify motorTorqueCurrentParameters
+        std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+        if (!frictionEstimators[index]->initialize(nnParameters[index].modelPath,
+                                               nnParameters[index].threadNumber,
+                                               nnParameters[index].threadNumber))
+        {
+            log()->error("[JointTorqueControlDevice::setNNModel] Failed to re-initialize current estimator with model {}", nnModelName);
+            return false;
+        }
+
+        return true;
+    }
+
+    log()->error("[JointTorqueControlDevice::setNNModel] Failed to set the NN model {}. The joint {} is not found.", nnModelName, jointName);
+    return true;
+}
+
+std::string JointTorqueControlDevice::getNNModel(const std::string& jointName)
+{
+    std::string nnModelName = "none";
+
+    size_t index = 0;
+
+    do
+    {
+        if (m_axisNames[index] == jointName)
+        {
+            std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+            return nnParameters[index].modelPath;
+        }
+
+        index++;
+    } while (index < m_axisNames.size());
+
+    return nnModelName;
 }
 
 bool JointTorqueControlDevice::setKtJtcvc(const std::string& jointName, const double kt)
@@ -545,73 +643,143 @@ double JointTorqueControlDevice::computeFrictionTorque(int joint)
     return frictionTorque;
 }
 
+double JointTorqueControlDevice::computeCurrentResidual(int joint)
+{
+    double currentResidual = 0.0;
+    double scaleFactor = 1.0;
+
+    // Test network with inputs position error motor side, joint velocity and motor temperature
+    if (isRotaryMotor){
+        scaleFactor = M_PI / 180.0;
+    }
+    if (!currentEstimators[joint]->estimate(measuredJointPositions[joint] * scaleFactor,
+                                            measuredJointVelocities[joint] * scaleFactor,
+                                            desiredJointTorques[joint],
+                                            measuredMotorCurrents[joint],
+                                            currentResidual))
+    {
+        currentResidual = 0.0;
+    }
+
+    currentResidual = saturation(currentResidual,
+                                measuredJointVelocities[joint],
+                                motorTorqueCurrentParameters[joint].jointVelThreshold,
+                                motorTorqueCurrentParameters[joint].maxOutputCurrentResidual,
+                                -motorTorqueCurrentParameters[joint].maxOutputCurrentResidual);
+
+    return currentResidual;
+}
+
 void JointTorqueControlDevice::computeDesiredCurrents()
 {
-    yarp::eigen::toEigen(desiredJointTorques) = couplingMatrices.fromJointTorquesToMotorTorques
-                                                * yarp::eigen::toEigen(desiredJointTorques);
-
-    estimatedFrictionTorques.zero();
-
-    std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
-
-    for (int j = 0; j < this->axes; j++)
+    if (compensateTorque)
     {
-        if (this->hijackingTorqueControl[j])
+        yarp::eigen::toEigen(desiredJointTorques) = couplingMatrices.fromJointTorquesToMotorTorques
+                                                    * yarp::eigen::toEigen(desiredJointTorques);
+
+        estimatedFrictionTorques.zero();
+
+        std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+        for (int j = 0; j < this->axes; j++)
         {
-            if (motorTorqueCurrentParameters[j].kfc > 0.0)
+            if (this->hijackingTorqueControl[j])
             {
-                estimatedFrictionTorques[j]
-                    = motorTorqueCurrentParameters[j].kfc * computeFrictionTorque(j);
+                if (motorTorqueCurrentParameters[j].kfc > 0.0)
+                {
+                    estimatedFrictionTorques[j]
+                        = motorTorqueCurrentParameters[j].kfc * computeFrictionTorque(j);
+                }
             }
         }
-    }
 
-    if (m_lowPassFilterParameters.enabled)
-    {
-        if (!lowPassFilter.setInput(yarp::eigen::toEigen(estimatedFrictionTorques)))
+        if (m_lowPassFilterParameters.enabled)
         {
-            log()->error("Error in setting the input of the low pass filter");
-        }
-
-        if (!lowPassFilter.advance())
-        {
-            log()->error("Error in advancing the low pass filter");
-        }
-
-        for (int idx = 0; idx < estimatedFrictionTorques.size(); idx++)
-        {
-            estimatedFrictionTorques[idx] = lowPassFilter.getOutput()[idx];
-        }
-    }
-
-    for (int j = 0; j < this->axes; j++)
-    {
-        if (this->hijackingTorqueControl[j])
-        {
-            torqueIntegralErrors[j]
-                += (desiredJointTorques[j] - measuredJointTorques[j]) * this->getPeriod();
-
-            desiredMotorCurrents[j]
-                = (desiredJointTorques[j]
-                   + motorTorqueCurrentParameters[j].kp
-                         * (desiredJointTorques[j] - measuredJointTorques[j])
-                   + motorTorqueCurrentParameters[j].ki * torqueIntegralErrors[j]
-                   + estimatedFrictionTorques[j])
-                  / motorTorqueCurrentParameters[j].kt;
-
-            desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j];
-
-            desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
-                                                 motorTorqueCurrentParameters[j].maxCurr,
-                                                 -motorTorqueCurrentParameters[j].maxCurr);
-
+            if (!lowPassFilter.setInput(yarp::eigen::toEigen(estimatedFrictionTorques)))
             {
+                log()->error("Error in setting the input of the low pass filter");
+            }
+
+            if (!lowPassFilter.advance())
+            {
+                log()->error("Error in advancing the low pass filter");
+            }
+
+            for (int idx = 0; idx < estimatedFrictionTorques.size(); idx++)
+            {
+                estimatedFrictionTorques[idx] = lowPassFilter.getOutput()[idx];
+            }
+        }
+
+        for (int j = 0; j < this->axes; j++)
+        {
+            if (this->hijackingTorqueControl[j])
+            {
+                torqueIntegralErrors[j]
+                    += (desiredJointTorques[j] - measuredJointTorques[j]) * this->getPeriod();
+
+                desiredMotorCurrents[j]
+                    = (desiredJointTorques[j]
+                    + motorTorqueCurrentParameters[j].kp
+                            * (desiredJointTorques[j] - measuredJointTorques[j])
+                    + motorTorqueCurrentParameters[j].ki * torqueIntegralErrors[j]
+                    + estimatedFrictionTorques[j])
+                    / motorTorqueCurrentParameters[j].kt;
+
+                desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j];
+
+                desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
+                                                    motorTorqueCurrentParameters[j].maxCurr,
+                                                    -motorTorqueCurrentParameters[j].maxCurr);
+
+                {
                 if (m_publishEstimationVectorsCollection)
                 {
                     std::lock_guard<std::mutex> lockOutput(m_status.mutex);
                     m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
                     m_status.m_currentLogging[j] = desiredMotorCurrents[j];
                 }
+                }
+            }
+        }
+    }
+
+    if (compensateCurrent)
+    {
+        for (int j = 0; j < this->axes; j++)
+        {
+            if (this->hijackingTorqueControl[j])
+            {
+                if (motorTorqueCurrentParameters[j].kfc > 0.0)
+                {
+                    estimatedCurrentResiduals[j]
+                        = motorTorqueCurrentParameters[j].kfc * computeCurrentResidual(j);
+                }
+            }
+        }
+
+        for (int j = 0; j < this->axes; j++)
+        {
+            if (this->hijackingTorqueControl[j])
+            {
+
+                desiredMotorCurrents[j]
+                    = desiredJointTorques[j] / motorTorqueCurrentParameters[j].kt
+                    + estimatedCurrentResiduals[j];
+
+                // desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j]; not necessary
+
+                desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
+                                                    motorTorqueCurrentParameters[j].maxCurr,
+                                                    -motorTorqueCurrentParameters[j].maxCurr);
+
+                if (m_publishEstimationVectorsCollection)
+                {
+                    std::lock_guard<std::mutex> lockOutput(m_status.mutex);
+                    m_status.m_currentResidualLogging[j] = estimatedCurrentResiduals[j];
+                    m_status.m_currentLogging[j] = desiredMotorCurrents[j];
+                }
+
             }
         }
     }
@@ -718,6 +886,10 @@ void JointTorqueControlDevice::readStatus()
                       * yarp::eigen::toEigen(measuredJointVelocities);
             }
         }
+    }
+    if (!this->PassThroughControlBoard::getCurrents(measuredMotorCurrents.data()))
+    {
+        log()->error("{} Failed to get motor currents", logPrefix);
     }
 }
 
@@ -960,6 +1132,52 @@ bool JointTorqueControlDevice::loadFrictionParams(
     return true;
 }
 
+bool JointTorqueControlDevice::loadCurrentResidualParams(
+    std::weak_ptr<const ParametersHandler::IParametersHandler> paramHandler)
+{
+    constexpr auto logPrefix = "[JointTorqueControlDevice::loadCurrentModel]";
+
+    auto ptr = paramHandler.lock();
+
+    if (ptr == nullptr)
+    {
+        log()->error("{} Invalid parameter handler", logPrefix);
+        return false;
+    }
+
+    yarp::os::ResourceFinder& rf = yarp::os::ResourceFinder::getResourceFinderSingleton();
+
+    auto currentGroup = ptr->getGroup("CURRENT_NN").lock();
+    if (currentGroup == nullptr)
+    {
+        log()->info("{} Group `CURRENT_NN` not found in configuration.", logPrefix);
+    } else
+    {
+        std::vector<std::string> models;
+        if (!currentGroup->getParameter("model", models))
+        {
+            log()->error("{} Parameter `model` not found", logPrefix);
+            return false;
+        }
+
+        int threads;
+        if (!currentGroup->getParameter("thread_number", threads))
+        {
+            log()->error("{} Parameter `thread_number` not found", logPrefix);
+            return false;
+        }
+
+        for (int i = 0; i < models.size(); i++)
+        {
+            std::string modelFilePath{rf.findFileByName(models[i])};
+            nnParameters[i].modelPath = modelFilePath;
+            nnParameters[i].threadNumber = threads;
+        }
+    }
+
+    return true;
+}
+
 // DEVICE DRIVER
 bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 {
@@ -1101,11 +1319,27 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         jointVelThreshold.resize(kt.size(), 0.0);
     }
 
+    std::vector<std::string> currentResidualModels;
+    if (!torqueGroup->getParameter("current_residual_model", currentResidualModels))
+    {
+        log()->error("{} Parameter `current_residual_model` not found", logPrefix);
+        return false;
+    }
+
+    std::vector<double> maxOutputCurrentResidual;
+    if (!torqueGroup->getParameter("max_output_current_residual", maxOutputCurrentResidual))
+    {
+        log()->error("{} Parameter `max_output_current_residual` not found", logPrefix);
+        return false;
+    }
+
     motorTorqueCurrentParameters.resize(kt.size());
     pinnParameters.resize(kt.size());
     coulombViscousParameters.resize(kt.size());
     coulombViscousStribeckParameters.resize(kt.size());
     frictionEstimators.resize(kt.size());
+    nnParameters.resize(kt.size());
+    currentEstimators.resize(kt.size());
     for (int i = 0; i < kt.size(); i++)
     {
         motorTorqueCurrentParameters[i].kt = kt[i];
@@ -1116,6 +1350,7 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         motorTorqueCurrentParameters[i].frictionModel = frictionModels[i];
         motorTorqueCurrentParameters[i].maxOutputFriction = maxOutputFriction[i];
         motorTorqueCurrentParameters[i].jointVelThreshold = jointVelThreshold[i];
+        motorTorqueCurrentParameters[i].currentModel = currentResidualModels[i];
     }
 
     auto filterParams = std::make_shared<ParametersHandler::YarpImplementation>();
@@ -1160,6 +1395,25 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         }
     }
 
+    if (!this->loadCurrentResidualParams(params))
+    {
+        log()->error("{} Failed to load current residual model", logPrefix);
+        return false;
+    }
+
+    for (int i = 0; i < kt.size(); i++)
+    {
+        currentEstimators[i] = std::make_unique<NNCurrentEstimator>();
+
+        if (!currentEstimators[i]->initialize(nnParameters[i].modelPath,
+                                                nnParameters[i].threadNumber,
+                                                nnParameters[i].threadNumber))
+        {
+            log()->error("{} Failed to initialize friction estimator", logPrefix);
+            return false;
+        }   
+    }
+
     std::vector<std::string> joint_list;
     if (!params->getParameter("joint_list", joint_list))
     {
@@ -1197,6 +1451,7 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
         m_vectorsCollectionServer.populateMetadata("motor_currents::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("current_residuals::estimated", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
     }
@@ -1239,6 +1494,8 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_currentLogging);
             m_vectorsCollectionServer.populateData("friction_torques::estimated",
                                                    m_status.m_frictionLogging);
+            m_vectorsCollectionServer.populateData("current_residuals::estimated",
+                                                    m_status.m_currentResidualLogging);
             m_vectorsCollectionServer.sendData();
         }
 
@@ -1409,11 +1666,14 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         torqueIntegralErrors.resize(axes, 0.0);
         measuredJointPositions.resize(axes, 0.0);
         measuredMotorPositions.resize(axes, 0.0);
+        measuredMotorCurrents.resize(axes, 0.0);
         estimatedFrictionTorques.resize(axes, 0.0);
+        estimatedCurrentResiduals.resize(axes, 0.0);
         m_gearRatios.resize(axes, 1);
         m_axisNames.resize(axes);
         m_status.m_frictionLogging.resize(axes, 1);
         m_status.m_currentLogging.resize(axes, 1);
+        m_status.m_currentResidualLogging.resize(axes, 1);
     }
 
     // Initialize variables for KF idyntree
@@ -1739,7 +1999,7 @@ void JointTorqueControlDevice::controlLoop()
 
         for (std::vector<int>::iterator it = hijackedMotors.begin(); it != hijackedMotors.end(); ++it)
         {
-            desiredMotorCurrentsHijackedMotors.push_back(desiredMotorCurrents[*it]);
+            desiredMotorCurrentsHijackedMotors.push_back(desiredMotorCurrents[*it] * 0);
         }
 
         this->setRefCurrents(hijackedMotors.size(),

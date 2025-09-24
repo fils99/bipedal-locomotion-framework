@@ -74,7 +74,7 @@ struct MotorTorqueCurrentParameters
     double maxOutputFriction; /**< maximum output of the friction model */
     double jointVelThreshold{0.0}; /**< joint velocity saturation */
     std::string currentModel; ///< motor current model
-    double maxOutputCurrent; /**< maximum output of the motor current model */
+    double maxOutputCurrentResidual; /**< maximum output of the motor current model */
 
     /**
      * Reset the parameters
@@ -84,7 +84,7 @@ struct MotorTorqueCurrentParameters
         kt = kfc = kp = maxCurr = 0.0;
         maxOutputFriction = 0.0;
         frictionModel = "";
-        maxOutputCurrent = 0.0;
+        maxOutputCurrentResidual = 0.0;
         currentModel = "";
     }
 };
@@ -206,6 +206,8 @@ private:
     yarp::sig::Vector measuredJointTorques;
     yarp::sig::Vector measuredJointPositions;
     yarp::sig::Vector measuredMotorPositions;
+    yarp::sig::Vector estimatedCurrentResiduals;
+    yarp::sig::Vector measuredMotorCurrents;
     yarp::sig::Vector estimatedFrictionTorques;
     yarp::sig::Vector torqueIntegralErrors;
     std::string m_portPrefix{"/hijackingTrqCrl"}; /**< Default port prefix. */
@@ -234,6 +236,7 @@ private:
         std::mutex mutex;
         std::vector<double> m_frictionLogging;
         std::vector<double> m_currentLogging;
+        std::vector<double> m_currentResidualLogging;
     } m_status;
     bool m_publishEstimationVectorsCollection{false}; /**< True if the estimation is published. */
 
@@ -266,6 +269,7 @@ private:
     void readStatus();
     // bool loadGains(yarp::os::Searchable& config);
     bool loadFrictionParams(std::weak_ptr<const ParametersHandler::IParametersHandler> paramHandler);
+    bool loadCurrentResidualParams(std::weak_ptr<const ParametersHandler::IParametersHandler> paramHandler);
 
     /**
      * Published the status.
@@ -343,7 +347,7 @@ public:
     virtual std::string getFrictionModel(const std::string& jointName) override;
     virtual bool setPINNModel(const std::string& jointName, const std::string& pinnModelName) override;
     virtual std::string getPINNModel(const std::string& jointName) override;
-    virtual bool setMaxCurrentResidual(const std::string& jointName, const double maxCurrent) override;
+    virtual bool setMaxCurrentResidual(const std::string& jointName, const double maxCurrentResidual) override;
     virtual double getMaxCurrentResidual(const std::string& jointName) override;
     virtual bool setCurrentModel(const std::string& jointName, const std::string& model) override;
     virtual std::string getCurrentModel(const std::string& jointName) override;
