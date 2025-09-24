@@ -31,6 +31,7 @@ PassThroughControlBoard::PassThroughControlBoard()
     , proxyIControlLimits(0)
     , proxyIMotor(0)
     , proxyIJointFault(0)
+    , proxyAxisInfoInterface(0)
 {
 }
 
@@ -58,6 +59,7 @@ void PassThroughControlBoard::resetPointers()
     proxyIControlLimits = nullptr;
     proxyIMotor = nullptr;
     proxyIJointFault = nullptr;
+    proxyAxisInfoInterface = nullptr;
 }
 
 // DEVICE DRIVER
@@ -102,6 +104,7 @@ bool PassThroughControlBoard::attachAll(const PolyDriverList& p)
     proxyDevice->view(proxyIControlLimits);
     proxyDevice->view(proxyIMotor);
     proxyDevice->view(proxyIJointFault);
+    proxyDevice->view(proxyAxisInfoInterface);
 
     return true;
 }

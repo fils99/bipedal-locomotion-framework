@@ -80,6 +80,7 @@ protected:
     yarp::dev::IControlLimits* proxyIControlLimits;
     yarp::dev::IMotor* proxyIMotor;
     yarp::dev::IJointFault* proxyIJointFault;
+    yarp::dev::IAxisInfo* proxyAxisInfoInterface{nullptr};
     void proxyIMotorEncoder(const double* vals);
     void resetPointers();
 

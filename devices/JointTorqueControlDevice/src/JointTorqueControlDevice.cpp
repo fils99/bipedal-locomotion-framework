@@ -85,6 +85,21 @@ bool checkVectorExistInConfiguration(yarp::os::Bottle& bot,
             && bot.find(name).asList()->size() == expected_vec_size);
 }
 
+/** Set scaling factor according to the joint type */
+double getScaleFactor(yarp::dev::JointTypeEnum type)
+{
+    switch (type)
+    {
+        case yarp::dev::VOCAB_JOINTTYPE_REVOLUTE:
+            return M_PI / 180.0; // rotary, degrees → radians
+        case yarp::dev::VOCAB_JOINTTYPE_PRISMATIC:
+            return 1.0;          // linear, already in meters/mm
+        default:
+            // fallback if the joint type is unknown or unsupported
+            return 1.0;
+    }
+}
+
 // JOINT TORQUE CONTROL IMPLEMENTATION
 
 // CONSTRUCTOR/DESTRUCTOR
@@ -647,11 +662,12 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
 {
     double currentResidual = 0.0;
     double scaleFactor = 1.0;
-
-    // Test network with inputs position error motor side, joint velocity and motor temperature
-    if (isRotaryMotor){
-        scaleFactor = M_PI / 180.0;
+    yarp::dev::JointTypeEnum jointType{};
+    if (PassThroughControlBoard::getJointType(joint, jointType)){
+        scaleFactor = getScaleFactor(jointType);
     }
+
+    // Inference
     if (!currentEstimators[joint]->estimate(measuredJointPositions[joint] * scaleFactor,
                                             measuredJointVelocities[joint] * scaleFactor,
                                             desiredJointTorques[joint],
@@ -672,7 +688,7 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
 
 void JointTorqueControlDevice::computeDesiredCurrents()
 {
-    if (compensateTorque)
+    if (motorTorqueCurrentParameters[j].compensateTorque)
     {
         yarp::eigen::toEigen(desiredJointTorques) = couplingMatrices.fromJointTorquesToMotorTorques
                                                     * yarp::eigen::toEigen(desiredJointTorques);
@@ -744,7 +760,7 @@ void JointTorqueControlDevice::computeDesiredCurrents()
         }
     }
 
-    if (compensateCurrent)
+    if (motorTorqueCurrentParameters[j].compensateCurrent)
     {
         for (int j = 0; j < this->axes; j++)
         {
@@ -1333,6 +1349,20 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         return false;
     }
 
+    std::vector<double> compensateTorqueVector;
+    if (!torqueGroup->getParameter("compensate_friction_torque", compensateTorqueVector))
+    {
+        log()->error("{} Parameter `compensate_friction_torque` not found", logPrefix);
+        return false;
+    }
+
+    std::vector<double> compensateCurrentVector;
+    if (!torqueGroup->getParameter("compensate_current_residual", compensateCurrentVector))
+    {
+        log()->error("{} Parameter `compensate_current_residual` not found", logPrefix);
+        return false;
+    }
+
     motorTorqueCurrentParameters.resize(kt.size());
     pinnParameters.resize(kt.size());
     coulombViscousParameters.resize(kt.size());
@@ -1351,6 +1381,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         motorTorqueCurrentParameters[i].maxOutputFriction = maxOutputFriction[i];
         motorTorqueCurrentParameters[i].jointVelThreshold = jointVelThreshold[i];
         motorTorqueCurrentParameters[i].currentModel = currentResidualModels[i];
+        motorTorqueCurrentParameters[i].compensateTorque = compensateTorqueVector[i];
+        motorTorqueCurrentParameters[i].compensateCurrent = compensateCurrentVector[i];
     }
 
     auto filterParams = std::make_shared<ParametersHandler::YarpImplementation>();

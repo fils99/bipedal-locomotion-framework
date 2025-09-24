@@ -75,6 +75,8 @@ struct MotorTorqueCurrentParameters
     double jointVelThreshold{0.0}; /**< joint velocity saturation */
     std::string currentModel; ///< motor current model
     double maxOutputCurrentResidual; /**< maximum output of the motor current model */
+    bool compensateTorque; /**< true if you want to compensate friction torque */
+    bool compensateCurrent; /**< true if you want to compensate current residual */
 
     /**
      * Reset the parameters
@@ -349,8 +351,6 @@ public:
     virtual std::string getPINNModel(const std::string& jointName) override;
     virtual bool setMaxCurrentResidual(const std::string& jointName, const double maxCurrentResidual) override;
     virtual double getMaxCurrentResidual(const std::string& jointName) override;
-    virtual bool setCurrentModel(const std::string& jointName, const std::string& model) override;
-    virtual std::string getCurrentModel(const std::string& jointName) override;
     virtual bool setNNModel(const std::string& jointName, const std::string& nnModelName) override;
     virtual std::string getNNModel(const std::string& jointName) override;
     virtual bool setKtJtcvc(const std::string& jointName, const double kt) override;

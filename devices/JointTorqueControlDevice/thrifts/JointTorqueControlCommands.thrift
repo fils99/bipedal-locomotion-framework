@@ -28,6 +28,14 @@ service JointTorqueControlCommands
 
     string getPINNModel(1:string jointName);
 
+    bool setMaxCurrentResidual(1:string jointName, 2:double maxCurrentResidual);
+
+    double getMaxCurrentResidual(1:string jointName);
+
+    bool setNNModel(1:string jointName, 2:string nnModelName);
+
+    string getNNModel(1:string jointName);
+
     bool setKtJtcvc(1:string jointName, 2:double kt);
 
     double getKtJtcvc(1:string jointName);
