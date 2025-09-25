@@ -688,118 +688,99 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
 
 void JointTorqueControlDevice::computeDesiredCurrents()
 {
-    if (motorTorqueCurrentParameters[j].compensateTorque)
+    // Transform joint torques to motor torques (this should always be done)
+    yarp::eigen::toEigen(desiredJointTorques) = couplingMatrices.fromJointTorquesToMotorTorques
+                                                * yarp::eigen::toEigen(desiredJointTorques);
+
+    estimatedFrictionTorques.zero();
+
+    std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
+
+    // First pass: compute friction torques for axes that need torque compensation
+    for (int j = 0; j < this->axes; j++)
     {
-        yarp::eigen::toEigen(desiredJointTorques) = couplingMatrices.fromJointTorquesToMotorTorques
-                                                    * yarp::eigen::toEigen(desiredJointTorques);
-
-        estimatedFrictionTorques.zero();
-
-        std::lock_guard<std::mutex> lock(mutexTorqueControlParam_);
-
-        for (int j = 0; j < this->axes; j++)
+        if (this->hijackingTorqueControl[j] && motorTorqueCurrentParameters[j].compensateTorque)
         {
-            if (this->hijackingTorqueControl[j])
+            if (motorTorqueCurrentParameters[j].kfc > 0.0)
             {
-                if (motorTorqueCurrentParameters[j].kfc > 0.0)
-                {
-                    estimatedFrictionTorques[j]
-                        = motorTorqueCurrentParameters[j].kfc * computeFrictionTorque(j);
-                }
-            }
-        }
-
-        if (m_lowPassFilterParameters.enabled)
-        {
-            if (!lowPassFilter.setInput(yarp::eigen::toEigen(estimatedFrictionTorques)))
-            {
-                log()->error("Error in setting the input of the low pass filter");
-            }
-
-            if (!lowPassFilter.advance())
-            {
-                log()->error("Error in advancing the low pass filter");
-            }
-
-            for (int idx = 0; idx < estimatedFrictionTorques.size(); idx++)
-            {
-                estimatedFrictionTorques[idx] = lowPassFilter.getOutput()[idx];
-            }
-        }
-
-        for (int j = 0; j < this->axes; j++)
-        {
-            if (this->hijackingTorqueControl[j])
-            {
-                torqueIntegralErrors[j]
-                    += (desiredJointTorques[j] - measuredJointTorques[j]) * this->getPeriod();
-
-                desiredMotorCurrents[j]
-                    = (desiredJointTorques[j]
-                    + motorTorqueCurrentParameters[j].kp
-                            * (desiredJointTorques[j] - measuredJointTorques[j])
-                    + motorTorqueCurrentParameters[j].ki * torqueIntegralErrors[j]
-                    + estimatedFrictionTorques[j])
-                    / motorTorqueCurrentParameters[j].kt;
-
-                desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j];
-
-                desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
-                                                    motorTorqueCurrentParameters[j].maxCurr,
-                                                    -motorTorqueCurrentParameters[j].maxCurr);
-
-                {
-                if (m_publishEstimationVectorsCollection)
-                {
-                    std::lock_guard<std::mutex> lockOutput(m_status.mutex);
-                    m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
-                    m_status.m_currentLogging[j] = desiredMotorCurrents[j];
-                }
-                }
+                estimatedFrictionTorques[j] = motorTorqueCurrentParameters[j].kfc * computeFrictionTorque(j);
             }
         }
     }
 
-    if (motorTorqueCurrentParameters[j].compensateCurrent)
+    // Apply low pass filter if enabled
+    if (m_lowPassFilterParameters.enabled)
     {
-        for (int j = 0; j < this->axes; j++)
+        if (!lowPassFilter.setInput(yarp::eigen::toEigen(estimatedFrictionTorques)))
         {
-            if (this->hijackingTorqueControl[j])
-            {
-                if (motorTorqueCurrentParameters[j].kfc > 0.0)
-                {
-                    estimatedCurrentResiduals[j]
-                        = motorTorqueCurrentParameters[j].kfc * computeCurrentResidual(j);
-                }
-            }
+            log()->error("Error in setting the input of the low pass filter");
         }
 
-        for (int j = 0; j < this->axes; j++)
+        if (!lowPassFilter.advance())
         {
-            if (this->hijackingTorqueControl[j])
+            log()->error("Error in advancing the low pass filter");
+        }
+
+        for (int idx = 0; idx < estimatedFrictionTorques.size(); idx++)
+        {
+            estimatedFrictionTorques[idx] = lowPassFilter.getOutput()[idx];
+        }
+    }
+
+    // Second pass: compute desired currents with torque compensation
+    for (int j = 0; j < this->axes; j++)
+    {
+        if (this->hijackingTorqueControl[j] && motorTorqueCurrentParameters[j].compensateTorque)
+        {
+            torqueIntegralErrors[j] += (desiredJointTorques[j] - measuredJointTorques[j]) * this->getPeriod();
+
+            desiredMotorCurrents[j] = (desiredJointTorques[j]
+                + motorTorqueCurrentParameters[j].kp * (desiredJointTorques[j] - measuredJointTorques[j])
+                + motorTorqueCurrentParameters[j].ki * torqueIntegralErrors[j]
+                + estimatedFrictionTorques[j]) / motorTorqueCurrentParameters[j].kt;
+
+            desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j];
+
+            desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
+                                                motorTorqueCurrentParameters[j].maxCurr,
+                                                -motorTorqueCurrentParameters[j].maxCurr);
+
+            if (m_publishEstimationVectorsCollection)
             {
-
-                desiredMotorCurrents[j]
-                    = desiredJointTorques[j] / motorTorqueCurrentParameters[j].kt
-                    + estimatedCurrentResiduals[j];
-
-                // desiredMotorCurrents[j] = desiredMotorCurrents[j] / m_gearRatios[j]; not necessary
-
-                desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
-                                                    motorTorqueCurrentParameters[j].maxCurr,
-                                                    -motorTorqueCurrentParameters[j].maxCurr);
-
-                if (m_publishEstimationVectorsCollection)
-                {
-                    std::lock_guard<std::mutex> lockOutput(m_status.mutex);
-                    m_status.m_currentResidualLogging[j] = estimatedCurrentResiduals[j];
-                    m_status.m_currentLogging[j] = desiredMotorCurrents[j];
-                }
-
+                std::lock_guard<std::mutex> lockOutput(m_status.mutex);
+                m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
+                m_status.m_currentLogging[j] = desiredMotorCurrents[j];
             }
         }
     }
 
+    // Third pass: handle current compensation
+    for (int j = 0; j < this->axes; j++)
+    {
+        if (this->hijackingTorqueControl[j] && motorTorqueCurrentParameters[j].compensateCurrent)
+        {
+            if (motorTorqueCurrentParameters[j].kfc > 0.0)
+            {
+                estimatedCurrentResiduals[j] = motorTorqueCurrentParameters[j].kfc * computeCurrentResidual(j);
+            }
+
+            desiredMotorCurrents[j] = desiredJointTorques[j] / motorTorqueCurrentParameters[j].kt
+                + estimatedCurrentResiduals[j];
+
+            desiredMotorCurrents[j] = saturation(desiredMotorCurrents[j],
+                                                motorTorqueCurrentParameters[j].maxCurr,
+                                                -motorTorqueCurrentParameters[j].maxCurr);
+
+            if (m_publishEstimationVectorsCollection)
+            {
+                std::lock_guard<std::mutex> lockOutput(m_status.mutex);
+                m_status.m_currentResidualLogging[j] = estimatedCurrentResiduals[j];
+                m_status.m_currentLogging[j] = desiredMotorCurrents[j];
+            }
+        }
+    }
+
+    // Final check for NaN or Inf values
     bool isNaNOrInf = false;
     for (int j = 0; j < this->axes; j++)
     {
