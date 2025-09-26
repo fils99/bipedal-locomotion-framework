@@ -14,9 +14,11 @@ if(FRAMEWORK_COMPILE_JointTorqueControlDevice)
       SOURCES src/JointTorqueControlDevice.cpp
               src/PassThroughControlBoard.cpp
               src/PINNFrictionEstimator.cpp
+              src/NNCurrentEstimator.cpp
       PUBLIC_HEADERS include/BipedalLocomotion/JointTorqueControlDevice.h
                      include/BipedalLocomotion/PassThroughControlBoard.h
                      include/BipedalLocomotion/PINNFrictionEstimator.h
+                     include/BipedalLocomotion/NNCurrentEstimator.h
       PRIVATE_LINK_LIBRARIES
       BipedalLocomotion::YarpUtilities
       BipedalLocomotion::SystemYarpImplementation
