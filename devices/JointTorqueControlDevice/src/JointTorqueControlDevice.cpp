@@ -573,6 +573,14 @@ void JointTorqueControlDevice::startHijackingTorqueControlIfNecessary(int j)
             this->readStatus();
         }
 
+
+        if (motorTorqueCurrentParameters[j].compensateCurrent)
+        {
+            currentEstimators[j]->resetEstimator();
+
+            this->readStatus();
+        }
+
         this->hijackingTorqueControl[j] = true;
         hijackedMotors.push_back(j);
 
@@ -1316,13 +1324,6 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         jointVelThreshold.resize(kt.size(), 0.0);
     }
 
-    std::vector<std::string> currentResidualModels;
-    if (!torqueGroup->getParameter("current_residual_model", currentResidualModels))
-    {
-        log()->error("{} Parameter `current_residual_model` not found", logPrefix);
-        return false;
-    }
-
     std::vector<double> maxOutputCurrentResidual;
     if (!torqueGroup->getParameter("max_output_current_residual", maxOutputCurrentResidual))
     {
@@ -1330,14 +1331,14 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         return false;
     }
 
-    std::vector<double> compensateTorqueVector;
+    std::vector<bool> compensateTorqueVector;
     if (!torqueGroup->getParameter("compensate_friction_torque", compensateTorqueVector))
     {
         log()->error("{} Parameter `compensate_friction_torque` not found", logPrefix);
         return false;
     }
 
-    std::vector<double> compensateCurrentVector;
+    std::vector<bool> compensateCurrentVector;
     if (!torqueGroup->getParameter("compensate_current_residual", compensateCurrentVector))
     {
         log()->error("{} Parameter `compensate_current_residual` not found", logPrefix);
@@ -1360,8 +1361,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         motorTorqueCurrentParameters[i].maxCurr = maxCurr[i];
         motorTorqueCurrentParameters[i].frictionModel = frictionModels[i];
         motorTorqueCurrentParameters[i].maxOutputFriction = maxOutputFriction[i];
+        motorTorqueCurrentParameters[i].maxOutputCurrentResidual = maxOutputCurrentResidual[i];
         motorTorqueCurrentParameters[i].jointVelThreshold = jointVelThreshold[i];
-        motorTorqueCurrentParameters[i].currentModel = currentResidualModels[i];
         motorTorqueCurrentParameters[i].compensateTorque = compensateTorqueVector[i];
         motorTorqueCurrentParameters[i].compensateCurrent = compensateCurrentVector[i];
     }
@@ -1416,15 +1417,18 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
     for (int i = 0; i < kt.size(); i++)
     {
-        currentEstimators[i] = std::make_unique<NNCurrentEstimator>();
-
-        if (!currentEstimators[i]->initialize(nnParameters[i].modelPath,
-                                                nnParameters[i].threadNumber,
-                                                nnParameters[i].threadNumber))
+        if (motorTorqueCurrentParameters[i].compensateCurrent)
         {
-            log()->error("{} Failed to initialize friction estimator", logPrefix);
-            return false;
-        }   
+                currentEstimators[i] = std::make_unique<NNCurrentEstimator>();
+
+            if (!currentEstimators[i]->initialize(nnParameters[i].modelPath,
+                                                    nnParameters[i].threadNumber,
+                                                    nnParameters[i].threadNumber))
+            {
+                log()->error("{} Failed to initialize friction estimator", logPrefix);
+                return false;
+            }   
+        }
     }
 
     std::vector<std::string> joint_list;
