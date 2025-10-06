@@ -1472,6 +1472,10 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
 
         m_vectorsCollectionServer.populateMetadata("motor_currents::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("friction_torques::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("motor_currents::measured", joint_list);
+        m_vectorsCollectionServer.populateMetadata("joint_positions::measured", joint_list);
+        m_vectorsCollectionServer.populateMetadata("joint_velocities::measured", joint_list);
+        m_vectorsCollectionServer.populateMetadata("torques::desired", joint_list);
         m_vectorsCollectionServer.populateMetadata("current_residuals::estimated", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
