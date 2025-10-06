@@ -237,7 +237,11 @@ private:
     {
         std::mutex mutex;
         std::vector<double> m_frictionLogging;
-        std::vector<double> m_currentLogging;
+        std::vector<double> m_desiredCurrentLogging;
+        std::vector<double> m_measuredCurrentLogging;
+        std::vector<double> m_jointPositionLogging;
+        std::vector<double> m_jointVelocityLogging;
+        std::vector<double> m_desiredTorqueLogging;
         std::vector<double> m_currentResidualLogging;
     } m_status;
     bool m_publishEstimationVectorsCollection{false}; /**< True if the estimation is published. */

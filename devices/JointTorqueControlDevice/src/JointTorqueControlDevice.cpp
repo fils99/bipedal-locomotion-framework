@@ -757,7 +757,7 @@ void JointTorqueControlDevice::computeDesiredCurrents()
             {
                 std::lock_guard<std::mutex> lockOutput(m_status.mutex);
                 m_status.m_frictionLogging[j] = estimatedFrictionTorques[j];
-                m_status.m_currentLogging[j] = desiredMotorCurrents[j];
+                m_status.m_desiredCurrentLogging[j] = desiredMotorCurrents[j];
             }
         }
     }
@@ -783,7 +783,11 @@ void JointTorqueControlDevice::computeDesiredCurrents()
             {
                 std::lock_guard<std::mutex> lockOutput(m_status.mutex);
                 m_status.m_currentResidualLogging[j] = estimatedCurrentResiduals[j];
-                m_status.m_currentLogging[j] = desiredMotorCurrents[j];
+                m_status.m_desiredCurrentLogging[j] = desiredMotorCurrents[j];
+                m_status.m_measuredCurrentLogging[j] = measuredMotorCurrents[j];
+                m_status.m_jointPositionLogging[j] = measuredJointPositions[j];
+                m_status.m_jointVelocityLogging[j] = measuredJointVelocities[j];
+                m_status.m_desiredTorqueLogging[j] = desiredJointTorques[j];
             }
         }
     }
@@ -1508,9 +1512,17 @@ void JointTorqueControlDevice::publishStatus()
         {
             std::lock_guard<std::mutex> lockOutput(m_status.mutex);
             m_vectorsCollectionServer.populateData("motor_currents::desired",
-                                                   m_status.m_currentLogging);
+                                                   m_status.m_desiredCurrentLogging);
             m_vectorsCollectionServer.populateData("friction_torques::estimated",
                                                    m_status.m_frictionLogging);
+            m_vectorsCollectionServer.populateData("motor_currents::measured",
+                                                   m_status.m_measuredCurrentLogging);
+            m_vectorsCollectionServer.populateData("joint_positions::measured",
+                                                   m_status.m_jointPositionLogging);
+            m_vectorsCollectionServer.populateData("joint_velocities::measured",
+                                                   m_status.m_jointVelocityLogging);
+            m_vectorsCollectionServer.populateData("torques::desired",
+                                                   m_status.m_desiredTorqueLogging);
             m_vectorsCollectionServer.populateData("current_residuals::estimated",
                                                     m_status.m_currentResidualLogging);
             m_vectorsCollectionServer.sendData();
@@ -1689,7 +1701,12 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         m_gearRatios.resize(axes, 1);
         m_axisNames.resize(axes);
         m_status.m_frictionLogging.resize(axes, 1);
-        m_status.m_currentLogging.resize(axes, 1);
+        m_status.m_desiredCurrentLogging.resize(axes, 1);
+        m_status.m_measuredCurrentLogging.resize(axes, 1);
+        m_status.m_jointPositionLogging.resize(axes, 1);
+        m_status.m_jointVelocityLogging.resize(axes, 1);
+        m_status.m_desiredTorqueLogging.resize(axes, 1);
+        m_status.m_currentResidualLogging.resize(axes, 1);
         m_status.m_currentResidualLogging.resize(axes, 1);
     }
 
