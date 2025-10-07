@@ -686,12 +686,10 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
     }
 
     currentResidual = saturation(currentResidual,
-                                measuredJointVelocities[joint],
-                                motorTorqueCurrentParameters[joint].jointVelThreshold,
                                 motorTorqueCurrentParameters[joint].maxOutputCurrentResidual,
                                 -motorTorqueCurrentParameters[joint].maxOutputCurrentResidual);
 
-    return currentResidual;
+    return (-currentResidual);
 }
 
 void JointTorqueControlDevice::computeDesiredCurrents()
@@ -2037,7 +2035,7 @@ void JointTorqueControlDevice::controlLoop()
 
         for (std::vector<int>::iterator it = hijackedMotors.begin(); it != hijackedMotors.end(); ++it)
         {
-            desiredMotorCurrentsHijackedMotors.push_back(desiredMotorCurrents[*it] * 0);
+            desiredMotorCurrentsHijackedMotors.push_back(desiredMotorCurrents[*it]);
         }
 
         this->setRefCurrents(hijackedMotors.size(),
