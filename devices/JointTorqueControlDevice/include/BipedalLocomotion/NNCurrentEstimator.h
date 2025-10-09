@@ -16,11 +16,12 @@
  * NNCurrentEstimator is a class that performs residual current estimation
  * using a neural network model.
  * This class uses NN models exported as ONNX files
- * Such NNs take 3 or 4 quantities as input:
+ * Such NNs take some of the following quantities as input:
  * - Joint position
  * - Joint velocity
  * - Desired force/torque (from an high level controller)
- * - Measured motor current (optional input)
+ * - Measured motor current
+ * - Desired motor current
  */
 class NNCurrentEstimator
 {
@@ -53,6 +54,7 @@ public:
      * @param[in] inputJointVelocity a double representing the joint velocity
      * @param[in] inputForce a double representing the force
      * @param[in] inputMotorCurrent a double representing the motor current
+     * @param[in] inputDesiredMotorCurrent a double representing the desired motor current
      * @param[out] output a double representing the current compensation
      * @return true if the estimation is successful, false otherwise
      */
@@ -60,6 +62,7 @@ public:
                   double inputJointVelocity,
                   double inputForce,
                   double inputMotorCurrent,
+                  double inputDesiredMotorCurrent,
                   double& output);
 
 

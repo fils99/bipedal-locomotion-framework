@@ -680,6 +680,7 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
                                             measuredJointVelocities[joint] * scaleFactor,
                                             desiredJointTorques[joint],
                                             measuredMotorCurrents[joint],
+                                            desiredJointTorques[joint] / motorTorqueCurrentParameters[joint].kt,
                                             currentResidual))
     {
         currentResidual = 0.0;

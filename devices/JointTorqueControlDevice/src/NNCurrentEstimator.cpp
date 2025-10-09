@@ -28,6 +28,7 @@ struct NNCurrentEstimator::Impl
     std::unique_ptr<Ort::Session> session;
     Ort::MemoryInfo memoryInfo;
 
+    int m_modelNumber;  // Number extracted from model filename
     std::size_t m_inputCount;
 
     struct DataStructured
@@ -58,6 +59,16 @@ bool NNCurrentEstimator::initialize(const std::string& networkModelPath,
                                        const std::size_t intraOpNumThreads,
                                        const std::size_t interOpNumThreads)
 {
+    // Extract model number from filename (e.g., "3_model.onnx" -> 3)
+    size_t lastSlash = networkModelPath.find_last_of("/\\");
+    std::string filename = networkModelPath.substr(lastSlash + 1);
+    if (filename[0] >= '0' && filename[0] <= '9') {
+        m_pimpl->m_modelNumber = filename[0] - '0';
+    } else {
+        BipedalLocomotion::log()->error("Model filename does not start with a number: {}", filename);
+        return false;
+    }
+
     std::basic_string<ORTCHAR_T> networkModelPathAsOrtString(networkModelPath.begin(),
                                                              networkModelPath.end());
 
@@ -123,6 +134,7 @@ bool NNCurrentEstimator::initialize(const std::string& networkModelPath,
 void NNCurrentEstimator::resetEstimator()
 {
     m_pimpl->m_inputCount = 0;
+    m_pimpl->m_modelNumber = 0;
     // Clear input
     std::fill(m_pimpl->structuredInput.rawData.begin(),
                 m_pimpl->structuredInput.rawData.end(), 0.0f);
@@ -132,24 +144,43 @@ bool NNCurrentEstimator::estimate(double inputJointPosition,
                                   double inputJointVelocity,
                                   double inputForce,
                                   double inputMotorCurrent,
+                                  double inputDesiredMotorCurrent,
                                   double& output)
 {
+    // Compute the sign of desired current using a threshold
+    constexpr double threshold = 0.015; // Amps
+    int signDesiredCurrent = (std::abs(inputDesiredMotorCurrent) <= threshold) ? 
+                            0 : (inputDesiredMotorCurrent > 0 ? 1 : -1);
 
-    // Fill the input
-    // in all the cases, joint position, joint velocity and force are used
-    // in case m_pimpl->m_inputCount == 4, also motor current is used
+    // Fill the input vector based on model number
     std::size_t index = 0;
-    m_pimpl->structuredInput.rawData[index] = static_cast<float>(inputJointPosition);
-    index++;
-    m_pimpl->structuredInput.rawData[index] = static_cast<float>(inputJointVelocity);
-    index++;
-    m_pimpl->structuredInput.rawData[index] = static_cast<float>(inputForce);
-    index++;
-    if (m_pimpl->m_inputCount == 4)
-    {
-        m_pimpl->structuredInput.rawData[index] = static_cast<float>(inputMotorCurrent);
-        index++;
-
+    
+    // Common inputs for all models
+    m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputJointPosition);
+    m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputJointVelocity);
+    
+    // Model specific inputs
+    switch(m_pimpl->m_modelNumber) {
+        case 2:
+            // Model 2: position, velocity, force, measured current
+            m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputForce);
+            m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputMotorCurrent);
+            break;
+            
+        case 3:
+            // Model 3: position, velocity, signDesiredCurrent
+            m_pimpl->structuredInput.rawData[index++] = static_cast<int>(signDesiredCurrent);
+            break;
+            
+        case 4:
+            // Model 4: position, velocity, measured current, signDesiredCurrent
+            m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputMotorCurrent);
+            m_pimpl->structuredInput.rawData[index++] = static_cast<int>(signDesiredCurrent);
+            break;
+            
+        default:
+            BipedalLocomotion::log()->error("Unsupported model number: {}", m_pimpl->m_modelNumber);
+            return false;
     }
 
     // perform the inference
