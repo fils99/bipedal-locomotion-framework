@@ -62,7 +62,7 @@ bool NNCurrentEstimator::initialize(const std::string& networkModelPath,
     // Extract model number from filename (e.g., "3_model.onnx" -> 3)
     size_t lastSlash = networkModelPath.find_last_of("/\\");
     std::string filename = networkModelPath.substr(lastSlash + 1);
-    if (filename[0] >= '0' && filename[0] <= '9') {
+    if (!filename.empty() && std::isdigit(filename[0])) {
         m_pimpl->m_modelNumber = filename[0] - '0';
     } else {
         BipedalLocomotion::log()->error("Model filename does not start with a number: {}", filename);
@@ -134,7 +134,6 @@ bool NNCurrentEstimator::initialize(const std::string& networkModelPath,
 void NNCurrentEstimator::resetEstimator()
 {
     m_pimpl->m_inputCount = 0;
-    m_pimpl->m_modelNumber = 0;
     // Clear input
     std::fill(m_pimpl->structuredInput.rawData.begin(),
                 m_pimpl->structuredInput.rawData.end(), 0.0f);
