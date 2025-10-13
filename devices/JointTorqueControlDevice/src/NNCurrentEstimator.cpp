@@ -160,6 +160,10 @@ bool NNCurrentEstimator::estimate(double inputJointPosition,
     
     // Model specific inputs
     switch(m_pimpl->m_modelNumber) {
+        case 1:
+            // Model 1: position, velocity, force
+            m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputForce);
+            break;
         case 2:
             // Model 2: position, velocity, force, measured current
             m_pimpl->structuredInput.rawData[index++] = static_cast<float>(inputForce);
