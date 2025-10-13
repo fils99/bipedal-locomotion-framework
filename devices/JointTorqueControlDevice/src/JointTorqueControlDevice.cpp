@@ -686,6 +686,12 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
         currentResidual = 0.0;
     }
 
+    if (m_publishEstimationVectorsCollection)
+    {
+        std::lock_guard<std::mutex> lockOutput(m_status.mutex);
+        m_status.m_currentResidualLoggingRaw[joint] = currentResidual;
+    }
+
     currentResidual = saturation(currentResidual,
                                 motorTorqueCurrentParameters[joint].maxOutputCurrentResidual,
                                 -motorTorqueCurrentParameters[joint].maxOutputCurrentResidual);
@@ -1475,7 +1481,8 @@ bool JointTorqueControlDevice::open(yarp::os::Searchable& config)
         m_vectorsCollectionServer.populateMetadata("joint_positions::measured", joint_list);
         m_vectorsCollectionServer.populateMetadata("joint_velocities::measured", joint_list);
         m_vectorsCollectionServer.populateMetadata("torques::desired", joint_list);
-        m_vectorsCollectionServer.populateMetadata("current_residuals::estimated", joint_list);
+        m_vectorsCollectionServer.populateMetadata("current_residuals::estimated::filtered_output", joint_list);
+        m_vectorsCollectionServer.populateMetadata("current_residuals::estimated::raw_output", joint_list);
         m_vectorsCollectionServer.finalizeMetadata();
         m_publishEstimationThread = std::thread([this] { this->publishStatus(); });
     }
@@ -1526,8 +1533,10 @@ void JointTorqueControlDevice::publishStatus()
                                                    m_status.m_jointVelocityLogging);
             m_vectorsCollectionServer.populateData("torques::desired",
                                                    m_status.m_desiredTorqueLogging);
-            m_vectorsCollectionServer.populateData("current_residuals::estimated",
+            m_vectorsCollectionServer.populateData("current_residuals::estimated::filtered_output",
                                                     m_status.m_currentResidualLogging);
+            m_vectorsCollectionServer.populateData("current_residuals::estimated::raw_output",
+                                                    m_status.m_currentResidualLoggingRaw);
             m_vectorsCollectionServer.sendData();
         }
 
@@ -1710,7 +1719,7 @@ bool JointTorqueControlDevice::attachAll(const PolyDriverList& p)
         m_status.m_jointVelocityLogging.resize(axes, 1);
         m_status.m_desiredTorqueLogging.resize(axes, 1);
         m_status.m_currentResidualLogging.resize(axes, 1);
-        m_status.m_currentResidualLogging.resize(axes, 1);
+        m_status.m_currentResidualLoggingRaw.resize(axes, 1);
     }
 
     // Initialize variables for KF idyntree

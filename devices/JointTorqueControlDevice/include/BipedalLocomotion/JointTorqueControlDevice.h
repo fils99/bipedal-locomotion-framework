@@ -243,6 +243,7 @@ private:
         std::vector<double> m_jointVelocityLogging;
         std::vector<double> m_desiredTorqueLogging;
         std::vector<double> m_currentResidualLogging;
+        std::vector<double> m_currentResidualLoggingRaw;
     } m_status;
     bool m_publishEstimationVectorsCollection{false}; /**< True if the estimation is published. */
 
