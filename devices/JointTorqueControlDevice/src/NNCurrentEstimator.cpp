@@ -208,5 +208,13 @@ bool NNCurrentEstimator::estimate(double inputJointPosition,
     // copy the output
     output = static_cast<double>(m_pimpl->structuredOutput.rawData[0]);
 
+    // in case of input_type 1 or 2, during the training the force used was the loadcell measurement
+    // instead, during the inference we have the desired force from the controller
+    // such force have opposite sign with respect to the loadcell measurement
+    if (m_pimpl->m_modelNumber == 1 || m_pimpl->m_modelNumber == 2)
+    {
+        output = -output;
+    }
+
     return true;
 }

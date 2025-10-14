@@ -678,7 +678,7 @@ double JointTorqueControlDevice::computeCurrentResidual(int joint)
     // Inference
     if (!currentEstimators[joint]->estimate(measuredJointPositions[joint] * scaleFactor,
                                             measuredJointVelocities[joint] * scaleFactor,
-                                            -desiredJointTorques[joint],
+                                            desiredJointTorques[joint],
                                             measuredMotorCurrents[joint],
                                             desiredJointTorques[joint] / motorTorqueCurrentParameters[joint].kt,
                                             currentResidual))
